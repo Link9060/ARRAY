@@ -129,7 +129,7 @@ function drawMarker(ctx: CanvasRenderingContext2D, p: Projected, color: string, 
   ctx.restore();
 }
 
-function drawVector(ctx: CanvasRenderingContext2D, flight: Flight, selected: boolean, cx: number, cy: number, radius: number, rot: ViewRotation) {
+function drawVector(ctx: CanvasRenderingContext2D, flight: Flight, selected: boolean) {
   const p = flight.current;
   if (!pointIsForeground(p)) return;
   const next = flight.future;
@@ -226,7 +226,7 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
         const arrivalAge=completed && f.mission.finishedAt ? (timestamp-f.mission.finishedAt) / 2400 : -1;
         drawMarker(ctx,start,'#aec4f7',selected,launching ? (seconds % 1.2)/1.2 : 0);
         drawMarker(ctx,end,completed?'#a8edcb':'#8baccb',selected,arrivalAge>=0 && arrivalAge < 1 ? arrivalAge : 0);
-        if(f.mission.phase!=='canceled' && f.mission.phase!=='failed')drawVector(ctx,f,selected,centerX,centerY,radius,rot);
+        if(f.mission.phase!=='canceled' && f.mission.phase!=='failed')drawVector(ctx,f,selected);
         if(pointIsForeground(f.current))clickTargets.push({id:f.mission.id,x:f.current.x,y:f.current.y});
       }
       targetRef.current=clickTargets;
