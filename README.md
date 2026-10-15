@@ -269,6 +269,19 @@ The owner will configure **GitHub Actions** deployment **after** the initial pro
 
 **The promise of RAVIN ARRAY:** the intelligence is useful, the controls are understandable, and the cinematic presentation never disguises what the software can actually do.
 
+
+### Flight Monitor diagnostic launcher (2026-10-15)
+
+The Flight Monitor includes a persistent **TEST LAUNCH** control. It creates a `Test Vector` entry using the local simulator without requiring an agent selection or objective. Each launch has a seeded, repeatable per-mission curved trajectory (abstract 2D coordinates; not physical or geographic targets). During the 24-second simulation a small stylized vector follows the dotted arc; on completion the destination receives a subtle arrival ring. The user can select the mission and cancel the simulation.
+
+- Each click creates an independent test mission; re-running does not recycle or reset earlier IDs.
+- A mission's launch/end coordinates are derived from its unique identifier and stay stable for the lifetime of that mission.
+- The travel fraction is **strictly demo animation timing**, never a live progress metric.
+- The test launch is always local and must never automatically invoke future real backend tools.
+- The dedicated `tests/flightPath.test.ts` covers deterministic paths, endpoints, travel timing and cancellation.
+- This is a stepping stone to the requested **3D Orbit-inspired rotating globe**; that separate globe integration has **not** been implemented yet.
+- The tests and production build for these newest changes have not been executed by this GitHub editing session, even though the earlier user-reported mission-engine test run passed.
+
 ## 11. Implementation snapshot (2026-10-15)
 
 **Implemented in repository:** a static Vite/React/TypeScript app with a four-quadrant 24-agent launch array, configurable RAVIN Core chat shortcut, six nodes per category, bottom command controls, a local simulated mission launch state machine, animated deployment streak, Flight Monitor trajectory SVG, mission list, mission inspector, demo cancellation, and responsive / reduced-motion CSS. Basic unit tests are committed.
