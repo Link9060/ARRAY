@@ -206,14 +206,14 @@ Semantic controls, keyboard focus, minimum comfortable touch targets, proper for
 ## 8. Roadmap and definition of done
 
 ### Phase 0: foundation (first production pass)
-- [ ] Publish this living README
-- [ ] Vite/React/TypeScript scaffold and compile
-- [ ] Four category arrays and central RAVIN chat shortcut
-- [ ] Agent selection and bottom command deck
-- [ ] Honest **DEMO MODE** mission creation, launch animation, mode switch, mission inspection
-- [ ] Mobile support, keyboard accessibility, reduced motion
-- [ ] At least basic mission-state tests
-- [ ] No deployment config changes
+- [x] Publish this living README
+- [x] Vite/React/TypeScript scaffold committed\n- [ ] Clean install and full build verified in a Node environment
+- [x] Four category arrays and central RAVIN chat shortcut
+- [x] Agent selection and bottom command deck
+- [x] Honest **DEMO MODE** mission creation, launch animation, mode switch, mission inspection
+- [x] Responsive layouts, keyboard focus states and reduced-motion styles implemented\n- [ ] Mobile and keyboard browser interaction checks completed
+- [x] Basic mission-state tests authored (execution unverified)\n- [ ] All automated tests executed successfully
+- [x] No deployment config changes
 
 ### Phase 1: live worker connection
 - [ ] Define RAVIN Core mission endpoint and auth/session strategy
@@ -265,3 +265,13 @@ The owner will configure **GitHub Actions** deployment **after** the initial pro
 ---
 
 **The promise of RAVIN ARRAY:** the intelligence is useful, the controls are understandable, and the cinematic presentation never disguises what the software can actually do.
+
+## 11. Implementation snapshot (2026-10-15)
+
+**Implemented in repository:** a static Vite/React/TypeScript app with a four-quadrant 24-agent launch array, configurable RAVIN Core chat shortcut, six nodes per category, bottom command controls, a local simulated mission launch state machine, animated deployment streak, Flight Monitor trajectory SVG, mission list, mission inspector, demo cancellation, and responsive / reduced-motion CSS. Basic unit tests are committed.
+
+**Not implemented:** backend workers, model/tool API calls, real task output, server-side execution policies, authentication, persistent missions, backend job cancel/approve, real progress and ETA forecasting, or any deployment workflow.
+
+**Verification note:** Source files were written and checked via GitHub connector, but an actual dependency install, TypeScript production build, test run, and browser/device QA have **not** been executed from this editing environment. Run `npm install && npm run build && npm run test` in Codespaces or your development machine before enabling deployment. Keep the UI labeled **SIMULATION MODE** until the RAVIN backend is working and verified.
+
+**Next implementation priority:** validate build and mobile behavior, then implement an authenticated `MissionAdapter` so the local simulator can be replaced with real RAVIN Core execution, phase events and output.
