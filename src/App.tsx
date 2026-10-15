@@ -10,7 +10,7 @@ import {
   formatDuration, isActiveMission, phaseLabel,
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
-import { createFlightCurve, demoFlightFraction, positionOnCurve } from './engine/flightPath';
+import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 
 type View = 'array' | 'monitor';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
@@ -223,69 +223,6 @@ function CommandDeck({
   );
 }
 
-function TrajectoryMap({ missions, selectedMissionId, onSelect, now }: {
-  missions: Mission[];
-  selectedMissionId: string | null;
-  onSelect: (id: string) => void;
-  now: number;
-}) {
-  const plotted = missions.slice(0, 4);
-  return (
-    <div className="trajectory-map">
-      <div className="map-topline"><span>MISSION TRAJECTORIES</span><span>SCHEMATIC DISPLAY <Radio size={13} /></span></div>
-      <svg viewBox="0 0 880 435" role="img" aria-label={plotted.length ? 'Illustrative curved routes for recent simulated missions' : 'Empty simulated flight trajectory field'}>
-        <defs>
-          <pattern id="flight-grid" width="38" height="38" patternUnits="userSpaceOnUse"><path d="M 38 0 L 0 0 0 38" fill="none" stroke="#c5d6fa" strokeOpacity=".065" strokeWidth="1"/></pattern>
-          <radialGradient id="monitor-glow"><stop offset="0" stopColor="#8baaff" stopOpacity=".12"/><stop offset="1" stopColor="#8baaff" stopOpacity="0"/></radialGradient>
-        </defs>
-        <rect width="880" height="435" fill="url(#flight-grid)" />
-        <circle cx="110" cy="338" r="194" fill="url(#monitor-glow)" />
-        {[74, 147, 225, 312].map((radius) => <circle key={radius} cx="110" cy="338" r={radius} fill="none" stroke="#9caecf" strokeOpacity=".11" strokeDasharray="2 7" />)}
-        <path d="M 0 338 H 880 M 110 0 V 435" stroke="#9caecf" strokeOpacity=".11" />
-        <circle cx="95" cy="336" r="34" stroke="#a8baff" strokeOpacity=".7" fill="#0e1724" />
-        <circle cx="95" cy="336" r="17" fill="#b0beff" fillOpacity=".12" stroke="#9fb0ec" />
-        <path d="M89 343 95 326 101 343" fill="none" stroke="#e5edff" strokeWidth="2" strokeLinecap="round"/>
-        <text x="95" y="389" textAnchor="middle" fontSize="10" fill="#97a7c5" letterSpacing="2">ARRAY</text>
-        {plotted.map((mission) => {
-          const c = createFlightCurve(mission.id);
-          const fraction = demoFlightFraction(mission, now);
-          const { x, y, angle } = positionOnCurve(c, fraction);
-          const d = `M${c.sx} ${c.sy} C${c.c1x} ${c.c1y} ${c.c2x} ${c.c2y} ${c.ex} ${c.ey}`;
-          const selected = mission.id === selectedMissionId;
-          const finished = mission.phase === 'succeeded';
-          const stopped = mission.phase === 'canceled' || mission.phase === 'failed';
-          return (
-            <g key={mission.id} className="trajectory-flight" role="button" tabIndex={0}
-              onClick={() => onSelect(mission.id)}
-              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(mission.id); } }}
-              aria-label={`Inspect ${mission.agentName} mission`}
-            >
-              <path d={d} fill="none" stroke={selected ? '#b6c7ff' : '#687a9d'} strokeOpacity={selected ? '.85' : '.55'} strokeWidth={selected ? '2' : '1.5'} strokeDasharray="3 10" />
-              <circle cx={c.sx} cy={c.sy} r="9" fill="#8198c9" fillOpacity=".14" stroke="#8097bd" strokeWidth="1"/>
-              <circle cx={c.sx} cy={c.sy} r="3" fill="#b8caff"/>
-              <circle cx={c.ex} cy={c.ey} r={finished ? 11 : 7} fill={finished ? '#8ce5c0' : 'transparent'} fillOpacity=".18" stroke={finished ? '#8ce5c0' : '#8ca3cf'} strokeOpacity=".7" />
-              <path d={`M${c.ex - 10} ${c.ey} H${c.ex + 10} M${c.ex} ${c.ey - 10} V${c.ey + 10}`} stroke="#899fc7" strokeOpacity=".42" />
-              {finished && <circle className="arrival-ring" cx={c.ex} cy={c.ey} r="17" stroke="#91dfc9" strokeWidth="1.5" fill="none"/>}
-              <circle cx={x} cy={y} r={selected ? 19 : 14} fill="#a4b9ff" fillOpacity=".09" stroke="#b9caff" strokeOpacity={selected ? '.8' : '.4'} />
-              <g transform={`translate(${x} ${y}) rotate(${angle})`} opacity={stopped ? '.45' : '1'}>
-                <path d="M 10 0 L -7 -5 L -4 0 L -7 5 Z" fill={finished ? '#9ce2cc' : '#dae4ff'} stroke="#bdd2ff" strokeWidth=".7" strokeLinejoin="round"/>
-                {!finished && !stopped && <path d="M -7 0 L -22 0" stroke="#abc9ff" strokeWidth="2" strokeLinecap="round" strokeOpacity=".7"/>}
-              </g>
-              <text x={Math.min(x + 21, 776)} y={y - 23} fontSize="10" fill={selected ? '#e2ebff' : '#96a5c3'} letterSpacing="1.2">{mission.agentName.toUpperCase()}</text>
-              <circle cx={x} cy={y} r="27" fill="transparent"/>
-            </g>
-          );
-        })}
-        {!plotted.length && <g>
-          <text x="458" y="191" textAnchor="middle" fill="#d2dcf0" fontSize="17" letterSpacing="2">NO MISSIONS IN FLIGHT</text>
-          <text x="458" y="219" textAnchor="middle" fill="#8090ac" fontSize="11">Try TEST LAUNCH above or deploy an agent from Launch Array.</text>
-        </g>}
-      </svg>
-      <div className="map-bottomline"><span>POSITION REFLECTS SIMULATED PHASES</span><span>NO LIVE TELEMETRY</span></div>
-    </div>
-  );
-}
-
 function MissionCard({ mission, now, selected, onSelect }: { mission: Mission; now: number; selected: boolean; onSelect: () => void }) {
   return (
     <button type="button" className={`mission-card ${selected ? 'is-selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
@@ -356,7 +293,7 @@ function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, o
             <button type="button" className="quiet-action" onClick={onGoToArray}><ArrowLeft size={15}/> BACK TO ARRAY</button>
           </div>
         </div>
-        <TrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
+        <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
         <div className="mission-list-title"><span>MISSION LOG <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></span><span>NEWEST FIRST</span></div>
         <div className="mission-list">
           {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> The flight log is empty. Use Test Launch above to fire a visual diagnostic, or deploy an agent.</div>}
