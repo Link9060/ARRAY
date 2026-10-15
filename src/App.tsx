@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronRight,
-  CircleDot, Clock3, Command, Compass, Crosshair, ExternalLink, Layers3,
-  PauseCircle, Play, Radar, Radio, Send, ShieldCheck, Sparkles, X,
+  Activity, ArrowDownRight, ArrowLeft, ArrowUpRight, Check, ChevronRight,
+  CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
+  Radar, Radio, ShieldCheck, Sparkles, X,
 } from 'lucide-react';
 import { AGENTS, CATEGORIES, getAgentsForCategory, type Agent, type AgentCategory } from './data/agents';
 import {
