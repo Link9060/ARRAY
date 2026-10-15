@@ -396,9 +396,9 @@ export default function App() {
         });
         return changed ? next : previous;
       });
-    }, 100);
+    }, view === 'monitor' && activeCount > 0 ? 80 : 500);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [view, activeCount]);
 
   useEffect(() => {
     if (!launchedAgentId) return;
