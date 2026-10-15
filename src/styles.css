@@ -338,3 +338,69 @@ h1 span { color:#a8b5d2; font-weight:400; }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after {animation-duration:.01ms !important;animation-iteration-count:1 !important;scroll-behavior:auto !important;transition-duration:.01ms !important;}
 }
+
+
+/* Flight Monitor v2: actual Orbit particle orb, projected 3D demo trajectories */
+.globe-monitor {
+  height: clamp(380px, 37vw, 520px);
+  min-height: 380px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #142039 0%, #0b1320 55%, #080f19 100%);
+}
+.globe-monitor-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.globe-monitor-canvas:active { cursor: grabbing; }
+.globe-monitor .map-topline,
+.globe-monitor .map-bottomline { z-index: 4; }
+.globe-monitor .map-topline { flex-wrap: wrap; }
+.globe-monitor .map-bottomline { color:#70839e; }
+.globe-empty {
+  position:absolute;
+  z-index:3;
+  top: 73%;
+  left:50%;
+  width:min(90%,440px);
+  transform:translate(-50%,-50%);
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  pointer-events:none;
+}
+.globe-empty strong { font:12px var(--mono); letter-spacing:.18em; font-weight:500; color:#d8e4fa; }
+.globe-empty span { font-size:11px; color:#8194b1; }
+.globe-legend {
+  position:absolute;
+  z-index:2;
+  top:51%;
+  left:20px;
+  transform:translateY(-50%);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  pointer-events:none;
+  color:#7689a7;
+  font:9px var(--mono);
+  letter-spacing:.08em;
+}
+.globe-legend > span {display:flex; align-items:center; gap:7px;}
+.globe-legend i {display:inline-block;width:5px;height:5px;background:#b9ccf4;border-radius:50%;box-shadow:0 0 8px #adc7ef60;}
+.globe-legend span:nth-child(2) i {background:#86b2ed;}
+.globe-legend span:nth-child(3) i {background:#99e3c6;}
+@media (max-width: 700px) {
+  .globe-monitor { min-height:350px; height:350px; }
+  .globe-legend {left:11px;top:52%;gap:9px;font-size:7px;}
+  .globe-monitor .map-bottomline,
+  .globe-monitor .map-topline {font-size:7px;padding:12px;}
+  .globe-monitor .map-bottomline span:last-child {display:none;}
+  .globe-empty {top:76%;}
+}
