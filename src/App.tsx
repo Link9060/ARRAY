@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
-  Radar, Radio, ShieldCheck, Sparkles, X,
+  Radar, Radio, ShieldCheck, Sparkles, X, Play,
 } from 'lucide-react';
 import { AGENTS, CATEGORIES, getAgentsForCategory, type Agent, type AgentCategory } from './data/agents';
 import {
   DEMO_RUN_MS, advanceDemoMission, cancelDemoMission, createDemoMission,
-  formatDuration, isActiveMission, phaseLabel, trajectoryPosition,
+  formatDuration, isActiveMission, phaseLabel,
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
+import { createFlightCurve, demoFlightFraction, positionOnCurve } from './engine/flightPath';
 
 type View = 'array' | 'monitor';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
@@ -222,23 +223,11 @@ function CommandDeck({
   );
 }
 
-interface Curve { sx: number; sy: number; c1x: number; c1y: number; c2x: number; c2y: number; ex: number; ey: number }
-const CURVES: Curve[] = [
-  { sx: 94, sy: 314, c1x: 265, c1y: 310, c2x: 395, c2y: 66, ex: 779, ey: 77 },
-  { sx: 94, sy: 328, c1x: 355, c1y: 300, c2x: 540, c2y: 200, ex: 796, ey: 174 },
-  { sx: 94, sy: 342, c1x: 210, c1y: 100, c2x: 600, c2y: 315, ex: 790, ey: 278 },
-  { sx: 94, sy: 356, c1x: 290, c1y: 475, c2x: 578, c2y: 350, ex: 794, ey: 368 },
-];
-
-function bezier(a: number, b: number, c: number, d: number, t: number): number {
-  const r = 1 - t;
-  return r * r * r * a + 3 * r * r * t * b + 3 * r * t * t * c + t * t * t * d;
-}
-
-function TrajectoryMap({ missions, selectedMissionId, onSelect }: {
+function TrajectoryMap({ missions, selectedMissionId, onSelect, now }: {
   missions: Mission[];
   selectedMissionId: string | null;
   onSelect: (id: string) => void;
+  now: number;
 }) {
   const plotted = missions.slice(0, 4);
   return (
@@ -257,14 +246,14 @@ function TrajectoryMap({ missions, selectedMissionId, onSelect }: {
         <circle cx="95" cy="336" r="17" fill="#b0beff" fillOpacity=".12" stroke="#9fb0ec" />
         <path d="M89 343 95 326 101 343" fill="none" stroke="#e5edff" strokeWidth="2" strokeLinecap="round"/>
         <text x="95" y="389" textAnchor="middle" fontSize="10" fill="#97a7c5" letterSpacing="2">ARRAY</text>
-        {plotted.map((mission, index) => {
-          const c = CURVES[index];
-          const t = trajectoryPosition(mission.phase);
-          const x = bezier(c.sx, c.c1x, c.c2x, c.ex, t);
-          const y = bezier(c.sy, c.c1y, c.c2y, c.ey, t);
+        {plotted.map((mission) => {
+          const c = createFlightCurve(mission.id);
+          const fraction = demoFlightFraction(mission, now);
+          const { x, y, angle } = positionOnCurve(c, fraction);
           const d = `M${c.sx} ${c.sy} C${c.c1x} ${c.c1y} ${c.c2x} ${c.c2y} ${c.ex} ${c.ey}`;
           const selected = mission.id === selectedMissionId;
           const finished = mission.phase === 'succeeded';
+          const stopped = mission.phase === 'canceled' || mission.phase === 'failed';
           return (
             <g key={mission.id} className="trajectory-flight" role="button" tabIndex={0}
               onClick={() => onSelect(mission.id)}
@@ -272,20 +261,25 @@ function TrajectoryMap({ missions, selectedMissionId, onSelect }: {
               aria-label={`Inspect ${mission.agentName} mission`}
             >
               <path d={d} fill="none" stroke={selected ? '#b6c7ff' : '#687a9d'} strokeOpacity={selected ? '.85' : '.55'} strokeWidth={selected ? '2' : '1.5'} strokeDasharray="3 10" />
-              <circle cx={c.ex} cy={c.ey} r="7" fill="none" stroke="#8ca3cf" strokeOpacity=".5" />
+              <circle cx={c.sx} cy={c.sy} r="9" fill="#8198c9" fillOpacity=".14" stroke="#8097bd" strokeWidth="1"/>
+              <circle cx={c.sx} cy={c.sy} r="3" fill="#b8caff"/>
+              <circle cx={c.ex} cy={c.ey} r={finished ? 11 : 7} fill={finished ? '#8ce5c0' : 'transparent'} fillOpacity=".18" stroke={finished ? '#8ce5c0' : '#8ca3cf'} strokeOpacity=".7" />
               <path d={`M${c.ex - 10} ${c.ey} H${c.ex + 10} M${c.ex} ${c.ey - 10} V${c.ey + 10}`} stroke="#899fc7" strokeOpacity=".42" />
+              {finished && <circle className="arrival-ring" cx={c.ex} cy={c.ey} r="17" stroke="#91dfc9" strokeWidth="1.5" fill="none"/>}
               <circle cx={x} cy={y} r={selected ? 19 : 14} fill="#a4b9ff" fillOpacity=".09" stroke="#b9caff" strokeOpacity={selected ? '.8' : '.4'} />
-              <circle cx={x} cy={y} r="5" fill={finished ? '#9ce2cc' : '#dae4ff'} />
-              <text x={x + 21} y={y - 16} fontSize="10" fill={selected ? '#e2ebff' : '#96a5c3'} letterSpacing="1.2">{mission.agentName.toUpperCase()}</text>
+              <g transform={`translate(${x} ${y}) rotate(${angle})`} opacity={stopped ? '.45' : '1'}>
+                <path d="M 10 0 L -7 -5 L -4 0 L -7 5 Z" fill={finished ? '#9ce2cc' : '#dae4ff'} stroke="#bdd2ff" strokeWidth=".7" strokeLinejoin="round"/>
+                {!finished && !stopped && <path d="M -7 0 L -22 0" stroke="#abc9ff" strokeWidth="2" strokeLinecap="round" strokeOpacity=".7"/>}
+              </g>
+              <text x={Math.min(x + 21, 776)} y={y - 23} fontSize="10" fill={selected ? '#e2ebff' : '#96a5c3'} letterSpacing="1.2">{mission.agentName.toUpperCase()}</text>
               <circle cx={x} cy={y} r="27" fill="transparent"/>
             </g>
           );
         })}
         {!plotted.length && <g>
           <text x="458" y="191" textAnchor="middle" fill="#d2dcf0" fontSize="17" letterSpacing="2">NO MISSIONS IN FLIGHT</text>
-          <text x="458" y="219" textAnchor="middle" fill="#8090ac" fontSize="11">Deploy an agent from Launch Array to begin.</text>
+          <text x="458" y="219" textAnchor="middle" fill="#8090ac" fontSize="11">Try TEST LAUNCH above or deploy an agent from Launch Array.</text>
         </g>}
-        <text x="834" y="414" fontSize="10" textAnchor="end" fill="#61718b" letterSpacing="2">NOT TO SCALE / DEMO</text>
       </svg>
       <div className="map-bottomline"><span>POSITION REFLECTS SIMULATED PHASES</span><span>NO LIVE TELEMETRY</span></div>
     </div>
@@ -340,23 +334,32 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
   );
 }
 
-function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, onCancel, onGoToArray }: {
+function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, onCancel, onGoToArray, onTestLaunch }: {
   missions: Mission[];
   now: number;
   selectedMissionId: string | null;
   setSelectedMissionId: (id: string) => void;
   onCancel: (id: string) => void;
   onGoToArray: () => void;
+  onTestLaunch: () => void;
 }) {
   const selected = missions.find((mission) => mission.id === selectedMissionId) ?? missions[0];
   return (
     <div className="monitor-layout">
       <div className="monitor-primary">
-        <div className="monitor-head"><div><span className="eyebrow">OPERATIONS / 02</span><h2>Flight monitor<span className="title-period">.</span></h2><p>Every mission has a path. Follow the sequence.</p></div><button type="button" className="quiet-action" onClick={onGoToArray}><ArrowLeft size={15}/> BACK TO ARRAY</button></div>
-        <TrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} />
+        <div className="monitor-head">
+          <div><span className="eyebrow">OPERATIONS / 02</span><h2>Flight monitor<span className="title-period">.</span></h2><p>Every mission has a path. Follow the sequence.</p></div>
+          <div className="monitor-header-actions">
+            <button type="button" className="test-launch-button" onClick={onTestLaunch} title="Launch a simulated test vector without connecting a real agent">
+              <Play size={15} fill="currentColor" /> TEST LAUNCH <span>SIM</span>
+            </button>
+            <button type="button" className="quiet-action" onClick={onGoToArray}><ArrowLeft size={15}/> BACK TO ARRAY</button>
+          </div>
+        </div>
+        <TrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
         <div className="mission-list-title"><span>MISSION LOG <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></span><span>NEWEST FIRST</span></div>
         <div className="mission-list">
-          {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> The flight log is empty. Launch an agent to create a simulated mission.</div>}
+          {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> The flight log is empty. Use Test Launch above to fire a visual diagnostic, or deploy an agent.</div>}
         </div>
       </div>
       <MissionInspector mission={selected} now={now} onCancel={onCancel} />
@@ -393,7 +396,7 @@ export default function App() {
         });
         return changed ? next : previous;
       });
-    }, 500);
+    }, 100);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -431,6 +434,20 @@ export default function App() {
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
 
+  function launchTest() {
+    const mission = createDemoMission({
+      agentId: 'test-vector',
+      agentName: 'Test Vector',
+      category: 'diagnostic',
+      objective: 'Visual diagnostics: test the simulated launch, arched flight path and arrival.',
+      policy: 'assist',
+    });
+    setMissions((previous) => [mission, ...previous].slice(0, 30));
+    setSelectedMissionId(mission.id);
+    setView('monitor');
+    setNotice('Test vector launched in simulation mode. No real agent or hardware was activated.');
+  }
+
   function cancelMission(id: string) {
     setMissions((previous) => previous.map((mission) => mission.id === id ? cancelDemoMission(mission, Date.now()) : mission));
     setNotice('Local demo mission canceled.');
@@ -463,7 +480,7 @@ export default function App() {
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} />
             <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={launch} launchedAgentId={launchedAgentId}/>
           </>
-        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={cancelMission} onGoToArray={() => setView('array')}/>}
+        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={cancelMission} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> NO LIVE AGENTS CONNECTED <span className="footer-divider">/</span> PROTOTYPE 0.1.0</span></footer>
       </main>
       {notice && <div className="toast" role="status"><Check size={16} /> {notice}<button type="button" aria-label="Dismiss notice" onClick={() => setNotice('')}><X size={15}/></button></div>}
