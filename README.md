@@ -207,12 +207,15 @@ Semantic controls, keyboard focus, minimum comfortable touch targets, proper for
 
 ### Phase 0: foundation (first production pass)
 - [x] Publish this living README
-- [x] Vite/React/TypeScript scaffold committed\n- [ ] Clean install and full build verified in a Node environment
+- [x] Vite/React/TypeScript scaffold committed
+- [ ] Clean install and full build verified in a Node environment
 - [x] Four category arrays and central RAVIN chat shortcut
 - [x] Agent selection and bottom command deck
 - [x] Honest **DEMO MODE** mission creation, launch animation, mode switch, mission inspection
-- [x] Responsive layouts, keyboard focus states and reduced-motion styles implemented\n- [ ] Mobile and keyboard browser interaction checks completed
-- [x] Basic mission-state tests authored (execution unverified)\n- [ ] All automated tests executed successfully
+- [x] Responsive layouts, keyboard focus states and reduced-motion styles implemented
+- [ ] Mobile and keyboard browser interaction checks completed
+- [x] Basic mission-state tests authored (execution unverified)
+- [ ] All automated tests executed successfully
 - [x] No deployment config changes
 
 ### Phase 1: live worker connection
