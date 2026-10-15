@@ -291,3 +291,21 @@ The Flight Monitor includes a persistent **TEST LAUNCH** control. It creates a `
 **Verification note:** Source files were written and checked via GitHub connector, but an actual dependency install, TypeScript production build, test run, and browser/device QA have **not** been executed from this editing environment. Run `npm install && npm run build && npm run test` in Codespaces or your development machine before enabling deployment. Keep the UI labeled **SIMULATION MODE** until the RAVIN backend is working and verified.
 
 **Next implementation priority:** validate build and mobile behavior, then implement an authenticated `MissionAdapter` so the local simulator can be replaced with real RAVIN Core execution, phase events and output.
+
+
+## Flight Monitor v2: Orbit particle globe (2026-10-15)
+
+**Implemented:** The flat Flight Monitor schematic has been replaced by a rotating, Orbit-style particle globe. The sphere renderer is copied from the project's sibling repository `Resonant-Orbit/src/lib/particle-renderer.ts` into `src/lib/orbit-particle-renderer.ts`; ARRAY uses the same globe rotation speed (~0.052 radians per second), pitch/roll conventions and perspective projection. The globe contains visual-only graticules, faint orbital guides, a draggable yaw adjustment, and reduced-motion handling.
+
+- Mission IDs deterministically produce different abstract 3D starting and ending points in `src/engine/globe.ts`. They are not real-world geographic coordinates.
+- Dotted trajectories follow elevated spherical great-circle arcs, with arrows/pulses advancing according to the **local demo clock**. Destination circles glow when the simulation ends; canceled/failed flights stop.
+- The foreground/occlusion logic dims hidden arcs and only draws visible vectors; routes rotate with the particle orb, not independently.
+- Up to six recent mission paths render concurrently; entries remain individually selectable through the accessible mission list and via clickable globe markers.
+- A persistent **TEST LAUNCH** button remains in the monitor, creating a standalone simulated test route without API calls.
+- New tests in `tests/globe.test.ts` cover stable coordinates, raised arcs, projection and demo timing.
+- The new `.github/workflows/validate.yml` workflow runs install, TypeScript build and unit tests on every push/PR. **It performs no deployment or publication.**
+- The real agent backend, measured progress, calibrated ETA, persistence and authentication remain future tasks. Never show a simulated trajectory as evidence an agent did any work.
+
+### Immediate next step
+
+Check GitHub Actions validation and visually review the globe in a browser, especially small-screen scaling, pointer-drag response, end-marker positions, flight occlusion and performance. Fix any reported regressions before wiring live RAVIN execution.
