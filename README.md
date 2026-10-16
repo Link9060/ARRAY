@@ -342,3 +342,22 @@ Full server documentation: `Project-R.A.V.I.N.-1.1/docs/ARRAY-API.md`.
 4. Add durable per-user persistence and true provider cancellation before production-scale use.
 5. Extend beyond text-only assistance only after separate tool-permission and approval architecture.
 
+
+
+## 13. Render live backend connection (2026-10-15)
+
+The user selected the existing **bro cha cho's Workspace** on Render for the live RAVIN bridge.
+
+### Current integration status
+- Existing RAVIN service: `ravin`, publicly addressed at `https://ravin-hyeq.onrender.com`.
+- The Render service auto-deploys **`Project-R.A.V.I.N.-1.1` branch `deployment-prep`**, which diverges from `main`. The ARRAY routes were deliberately ported to `deployment-prep` via PR #6, preserving the existing live RAVIN UI/other APIs.
+- Render deployed commit `384b1eda8333f6cbd15907b9c145a845bef73eef` and reports it **live**. Logs show the service listening and `GET /api/health` returning 200.
+- ARRAY now defaults its **public HTTPS API address** to `https://ravin-hyeq.onrender.com`, with `VITE_RAVIN_ARRAY_API_URL` available as a build-time override. This is not a secret.
+- Existing RAVIN server CORS explicitly permits `https://link9060.github.io` and `https://enterarrow.com` origins. A new ARRAY deployment under a different origin will need a deliberate CORS allowlist update before authenticated requests can work.
+- The ARRAY frontend's authenticated login checks its session and reads mission history before enabling live mode. Test Launch remains local simulation only.
+- **Not verified:** an end-to-end login and live AI mission from ARRAY using a real account. No credentials were requested or handled by the assistant. Don't claim live user-level operation is confirmed until a signed-in task succeeds.
+- **Not configured:** deploying ARRAY itself. The user plans to switch ARRAY deployment to GitHub Actions later; no static frontend deployment workflow was added.
+- Backend limitations remain: ephemeral in-memory jobs, queued-only cancellation, two concurrent jobs, no real progress ETA, no tool use, and no durable mission log.
+
+See [RAVIN backend PR #6](https://github.com/Link9060/Project-R.A.V.I.N.-1.1/pull/6) and the server's `docs/ARRAY-API.md`.
+
