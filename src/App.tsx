@@ -320,6 +320,14 @@ export default function App() {
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState('');
+  const [liveMode, setLiveMode] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [liveError, setLiveError] = useState('');
 
   const selectedAgent = AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0];
   const activeCount = missions.filter((mission) => isActiveMission(mission.phase)).length;
@@ -344,10 +352,10 @@ export default function App() {
   }, [view, activeCount]);
 
   useEffect(() => {
-    if (!launchedAgentId) return;
+    if (!launchedAgentId || liveMode) return;
     const timer = window.setTimeout(() => { setLaunchedAgentId(null); setView('monitor'); }, 1800);
     return () => window.clearTimeout(timer);
-  }, [launchedAgentId]);
+  }, [launchedAgentId, liveMode]);
 
   useEffect(() => {
     if (!notice) return;
@@ -355,14 +363,48 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => {
+    if (!liveConnected) return;
+    let stale = false;
+    const poll = async () => {
+      try {
+        const remote = await listLiveMissions();
+        if (stale) return;
+        setMissions(previous => [...remote, ...previous.filter(m => m.isDemo)].sort((a,b) => b.createdAt - a.createdAt).slice(0,50));
+        setLiveError('');
+      } catch(error) {
+        if (!stale) setLiveError(error instanceof Error ? error.message : 'Live mission refresh failed.');
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 4000);
+    return () => { stale=true; window.clearInterval(timer); };
+  }, [liveConnected]);
+
   const displayTime = useMemo(() => new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }), [now]);
 
   function selectCategory(category: AgentCategory) {
     setSelectedAgentId(getAgentsForCategory(category)[0].id);
   }
 
-  function launch() {
+  async function launch() {
     if (!objective.trim() || launchedAgentId) return;
+    if (liveMode) {
+      setLaunchedAgentId(selectedAgent.id);
+      try {
+        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy);
+        setMissions(previous => [mission, ...previous].slice(0,50));
+        setSelectedMissionId(mission.id);
+        setObjective('');
+        setNotice(`${selectedAgent.name} submitted to live RAVIN. Text-only mission queued.`);
+        setView('monitor');
+      } catch(error) {
+        setNotice(error instanceof Error ? error.message : 'Live launch failed.');
+      } finally {
+        setLaunchedAgentId(null);
+      }
+      return;
+    }
     const mission = createDemoMission({
       agentId: selectedAgent.id,
       agentName: selectedAgent.name,
@@ -370,11 +412,33 @@ export default function App() {
       objective,
       policy,
     });
-    setMissions((previous) => [mission, ...previous].slice(0, 30));
+    setMissions(previous => [mission, ...previous].slice(0,50));
     setSelectedMissionId(mission.id);
     setLaunchedAgentId(selectedAgent.id);
     setObjective('');
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
+  }
+
+  async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginBusy(true); setLoginError('');
+    try {
+      await signInLive(loginEmail, loginPassword);
+      await listLiveMissions();
+      setLiveConnected(true); setLiveMode(true);
+      setLoginOpen(false); setLoginPassword('');
+      if (policy === 'authorized') setPolicy('review');
+      setNotice('RAVIN authenticated and responding. Text-only missions enabled.');
+    } catch(error) {
+      signOutLive();
+      setLoginError(error instanceof Error ? error.message : 'Could not connect to RAVIN.');
+    } finally { setLoginBusy(false); }
+  }
+  function disconnectLive() {
+    signOutLive();
+    setLiveConnected(false); setLiveMode(false);
+    setMissions(previous => previous.filter(m => m.isDemo));
+    setNotice('Disconnected from RAVIN. Demo mode remains available.');
   }
 
   function launchTest() {
@@ -391,9 +455,21 @@ export default function App() {
     setNotice('Test vector launched in simulation mode. No real agent or hardware was activated.');
   }
 
-  function cancelMission(id: string) {
-    setMissions((previous) => previous.map((mission) => mission.id === id ? cancelDemoMission(mission, Date.now()) : mission));
-    setNotice('Local demo mission canceled.');
+  async function cancelMission(id: string) {
+    const mission = missions.find(item => item.id === id);
+    if (!mission) return;
+    if (mission.isDemo) {
+      setMissions(previous => previous.map(item => item.id === id ? cancelDemoMission(item, Date.now()) : item));
+      setNotice('Local demo mission canceled.');
+      return;
+    }
+    try {
+      const canceled = await cancelQueuedLiveMission(id);
+      setMissions(previous => previous.map(item => item.id === id ? canceled : item));
+      setNotice('Queued live mission canceled.');
+    } catch(error) {
+      setNotice(error instanceof Error ? error.message : 'Live cancel failed.');
+    }
   }
 
   return (
