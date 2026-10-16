@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { fromServerMission, isLiveAuthenticated } from '../src/engine/liveClient';
+import { fromServerMission, isLiveAuthenticated, liveApiConfigured, RAVIN_ARRAY_API } from '../src/engine/liveClient';
 import { advanceDemoMission, isActiveMission, phaseLabel, type Mission } from '../src/engine/mission';
 
 describe('ARRAY live mission adapter', () => {
+  it('has a public RAVIN API origin configured without containing credentials', () => {
+    expect(liveApiConfigured()).toBe(true);
+    expect(new URL(RAVIN_ARRAY_API).protocol).toBe('https:');
+    expect(new URL(RAVIN_ARRAY_API).username).toBe('');
+    expect(new URL(RAVIN_ARRAY_API).password).toBe('');
+  });
   const raw = {
     id:'server-123',
     agentId:'scout',
