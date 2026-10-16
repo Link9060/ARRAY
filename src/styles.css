@@ -404,3 +404,37 @@ h1 span { color:#a8b5d2; font-weight:400; }
   .globe-monitor .map-bottomline span:last-child {display:none;}
   .globe-empty {top:76%;}
 }
+
+
+/* Live RAVIN integration / safe demo switch */
+.connection-toolbar {display:flex;justify-content:space-between;align-items:center;gap:16px;margin:20px 0 0;padding:12px 14px;border:1px solid #2c3b4e;border-radius:8px;background:#111924;flex-wrap:wrap;}
+.connection-status {display:flex;align-items:center;gap:9px;color:#94a6bd;font:9px var(--mono);letter-spacing:.07em;}
+.connection-light {width:7px;height:7px;background:#bfa76e;border-radius:50%;}
+.connection-light.connected {background:#8ce0c2;box-shadow:0 0 8px #89e8c579;}
+.connection-actions {display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.connection-actions button {display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #344458;border-radius:5px;background:transparent;color:#8d9fb9;font:10px var(--mono);cursor:pointer;}
+.connection-actions button.active {background:#26354b;color:#e5efff;border-color:#7087ac;}
+.connection-actions button:hover:not(:disabled) {background:#273a52;color:#f2f7ff;}
+.connection-actions button:disabled {opacity:.38;cursor:not-allowed;}
+.connection-actions button.disconnect-action {color:#b9aaa2;}
+.connection-error {display:flex;align-items:center;gap:9px;color:#f2aaaa;font-size:11px;line-height:1.5;margin:10px 0 0;}
+.live-login-backdrop {position:fixed;inset:0;z-index:80;background:#000b;backdrop-filter:blur(12px);display:grid;place-items:center;padding:24px;}
+.live-login {width:min(450px,100%);padding:26px;background:linear-gradient(135deg,#182231,#101721);border:1px solid #4a5c78;border-radius:12px;box-shadow:0 22px 75px #000a;display:flex;flex-direction:column;gap:10px;}
+.live-login-head {display:flex;align-items:flex-start;justify-content:space-between;gap:15px;}
+.live-login-head h2 {font-size:25px;font-weight:500;margin:9px 0 0;}
+.live-login-head button {border:0;background:transparent;color:#bdcce2;padding:6px;border-radius:6px;}
+.live-login > p {font-size:12px;line-height:1.65;color:#9dacc2;}
+.live-login > label {margin-top:10px;color:#afc2df;letter-spacing:.1em;font:10px var(--mono);}
+.live-login > input {height:45px;padding:10px 13px;background:#0c131d;border:1px solid #40516a;border-radius:6px;color:#eaf2fc;font-size:13px;}
+.live-login > .launch-button {width:100%;margin-top:12px;}
+.live-login > small {color:#758aa7;font-size:10px;line-height:1.6;overflow-wrap:anywhere;}
+.live-login .live-login-error {color:#f0a9a9;margin:3px 0;font-size:11px;}
+.mission-output {padding:15px;margin-top:12px;max-height:430px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #34445e;border-radius:7px;background:#0b1420;color:#e3edfa;font:11px/1.65 var(--mono);}
+.mission-error {padding:12px;margin-top:15px;border:1px solid #85505055;background:#471b1b4d;border-radius:6px;color:#f0b4b4;font-size:11px;}
+.phase--queued .status-pin {background:#b6a878;box-shadow:0 0 8px #e4cc8080;}
+@media(max-width:750px){
+  .connection-toolbar {align-items:stretch;}
+  .connection-status {line-height:1.6;}
+  .connection-actions {justify-content:flex-start;}
+  .connection-actions button {padding:10px;}
+}
