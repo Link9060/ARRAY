@@ -309,3 +309,36 @@ The Flight Monitor includes a persistent **TEST LAUNCH** control. It creates a `
 ### Immediate next step
 
 Check GitHub Actions validation and visually review the globe in a browser, especially small-screen scaling, pointer-drag response, end-marker positions, flight occlusion and performance. Fix any reported regressions before wiring live RAVIN execution.
+
+
+## 12. Globe refinements and RAVIN integration v0.2 (2026-10-15)
+
+### Completed in ARRAY
+- The Orbit-style globe has **Pause/Resume** and **Focus Mission** controls, a draggable view and accessible mission list; the real Orbit particle renderer is still in use.
+- Real work and simulations are visually and functionally separated. Demo launches run a local timer and always say `SIM`; live missions show `LIVE` and only update when the backend reports their status.
+- Live tracking has **no fake ETA**: it shows `UNKNOWN`, while the orb uses static symbolic positions for queued/running/completed live phases.
+- ARRAY now contains `src/engine/liveClient.ts` for authenticated RAVIN missions. There is a sign-in dialog using the existing RAVIN account auth service, with tokens kept **only in memory**. Users do not have to paste API keys.
+- The command deck and Flight Monitor can switch between Simulation and authenticated text-only Live mode if a working backend URL is configured. Live mission responses appear as text results in the inspector; queued jobs can be canceled. Running live jobs **cannot** be reliably aborted yet.
+- The `TEST LAUNCH` control remains simulation-only, including when the user is otherwise connected to Live.
+- Tests include `tests/liveClient.test.ts`, checking that live missions are not advanced by the demo timer.
+
+### Completed in RAVIN backend repository
+`Link9060/Project-R.A.V.I.N.-1.1` now contains a text-only, authenticated `/api/array/*` mission API and a small in-memory worker queue. The implementation uses RAVIN's existing **conversation mode**, which does not run tool calls, so agents return analysis/drafts without changing files, sending messages, or deploying code.
+
+Full server documentation: `Project-R.A.V.I.N.-1.1/docs/ARRAY-API.md`.
+
+### Deployment prerequisite and limitations
+- **No running RAVIN API URL was confirmed during this change.** The frontend stays in Simulation until an actual HTTPS service URL is available.
+- Live feature activation requires the static frontend build-time `VITE_RAVIN_ARRAY_API_URL` to point at that confirmed service and the server's `ARRAY_ALLOWED_ORIGINS` to include the actual ARRAY browser origin.
+- Do not invent a server URL or assume `enterarrow.com/ravin` exposes the new routes.
+- No deployment workflow, Pages settings, or hosting configuration was changed for ARRAY.
+- RAVIN jobs currently live in memory, with no cross-instance persistence, realtime streaming, or full cancellation. This is not yet production-grade agent orchestration.
+- A backend deployment, cross-origin auth smoke test, visual browser QA, and robustness work are still pending. GitHub CI verifies builds/tests, not a real live user session.
+
+### Next milestones
+1. Verify the latest GitHub Actions tests and perform browser visual QA for the globe.
+2. Establish the real backend service URL and exact allowed origin using the user's confirmed hosting workspace.
+3. Exercise one authenticated live job end-to-end, including output and failure behavior.
+4. Add durable per-user persistence and true provider cancellation before production-scale use.
+5. Extend beyond text-only assistance only after separate tool-permission and approval architecture.
+
