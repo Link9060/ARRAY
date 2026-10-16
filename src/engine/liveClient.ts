@@ -7,7 +7,9 @@ import { AGENTS } from '../data/agents';
 import type { Mission, MissionPhase, ExecutionPolicy } from './mission';
 
 const AUTH_ENDPOINT = 'https://bzjudqhjrbwglxdfbkmj.supabase.co/functions/v1/ravin-auth';
-export const RAVIN_ARRAY_API = (import.meta.env.VITE_RAVIN_ARRAY_API_URL || '').trim().replace(/\/$/, '');
+// Confirmed existing Render service in the user's selected workspace.
+// This is a public HTTPS origin, not a credential. Can be overridden at build time.
+export const RAVIN_ARRAY_API = (import.meta.env.VITE_RAVIN_ARRAY_API_URL || 'https://ravin-hyeq.onrender.com').trim().replace(/\/$/, '');
 
 type Session = { accessToken: string; refreshToken: string; expiresAt: number };
 let session: Session | null = null;
