@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
@@ -419,7 +419,7 @@ export default function App() {
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
 
-  async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoginBusy(true); setLoginError('');
     try {
@@ -481,27 +481,49 @@ export default function App() {
           <span className="brand-text"><strong>RAVIN <span>/ ARRAY</span></strong><small>RESONANT INTELLIGENCE NETWORK</small></span>
         </a>
         <div className="header-center"><span className="header-line" /><span className="header-route">ARROW ECOSYSTEM <ChevronRight size={12} /> RAVIN <ChevronRight size={12} /> ARRAY</span><span className="header-line" /></div>
-        <div className="header-right"><span className="header-clock">{displayTime}</span><span className="simulation-pill"><span className="amber-dot" /> SIMULATION MODE</span><a className="header-chat" href={CHAT_URL} target="_blank" rel="noopener noreferrer">RAVIN CHAT <ExternalLink size={13} /></a></div>
+        <div className="header-right"><span className="header-clock">{displayTime}</span><span className="simulation-pill"><span className="amber-dot" /> {liveMode ? 'LIVE TEXT MODE' : 'SIMULATION MODE'}</span><a className="header-chat" href={CHAT_URL} target="_blank" rel="noopener noreferrer">RAVIN CHAT <ExternalLink size={13} /></a></div>
       </header>
       <main id="top" className="main-content">
         <div className="intro-row">
           <div><div className="section-kicker"><span className="section-kicker-line" /> INTELLIGENCE DEPLOYMENT SYSTEM <span className="alpha-index">/ 001</span></div><h1>RAVIN <span>ARRAY</span><span className="title-period">.</span></h1><p className="intro-tagline">Deploy intelligence. <span>Track every mission.</span></p></div>
-          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONAL ENVIRONMENT</span><span><Radio size={12} /> LOCAL DEMO</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
+          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONAL ENVIRONMENT</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
+        <div className="connection-toolbar">
+          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'LIVE BACKEND AVAILABLE / SIGN-IN REQUIRED' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}</div>
+          <div className="connection-actions">
+            <button type="button" className={!liveMode ? 'active' : ''} onClick={() => { setLiveMode(false); setPolicy('review'); }} aria-pressed={!liveMode}>SIMULATION</button>
+            <button type="button" className={liveMode ? 'active' : ''} onClick={() => { if(liveConnected){setLiveMode(true);if(policy==='authorized')setPolicy('review');}else {setLoginError('');setLoginOpen(true);} }} aria-pressed={liveMode} disabled={!liveApiConfigured()}>{liveConnected ? <Wifi size={13}/> : <LogIn size={13}/>} LIVE RAVIN</button>
+            {liveConnected && <button type="button" className="disconnect-action" onClick={disconnectLive} title="Sign out of live RAVIN"><LogOut size={13}/> DISCONNECT</button>}
+          </div>
+        </div>
+        {liveError && <p className="connection-error" role="alert"><WifiOff size={14}/> {liveError}</p>}
         <div className="stats-strip">
-          <span><span className="strip-indicator" /> SYSTEM ONLINE <span className="strip-separator">/</span> INTERFACE PREVIEW</span>
+          <span><span className="strip-indicator" /> SYSTEM ONLINE <span className="strip-separator">/</span> {liveMode ? 'LIVE TEXT MISSIONS' : 'INTERFACE PREVIEW'}</span>
           <span>04 <small>DIVISIONS</small><span className="strip-separator">/</span> 24 <small>AGENTS</small></span>
-          <span>{activeCount.toString().padStart(2, '0')} <small>IN FLIGHT</small><span className="strip-separator">/</span> {recentCount.toString().padStart(2, '0')} <small>DEMO COMPLETE</small></span>
+          <span>{activeCount.toString().padStart(2, '0')} <small>IN FLIGHT</small><span className="strip-separator">/</span> {recentCount.toString().padStart(2, '0')} <small>COMPLETED</small></span>
         </div>
         {view === 'array' ? (
           <>
             <div className="canvas-labels"><span><Compass size={14} /> THE DEPLOYMENT FIELD</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={launch} launchedAgentId={launchedAgentId}/>
+            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} liveMode={liveMode}/>
           </>
-        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={cancelMission} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
-        <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> NO LIVE AGENTS CONNECTED <span className="footer-divider">/</span> PROTOTYPE 0.1.0</span></footer>
+        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
+        <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
       </main>
+      {loginOpen && <div className="live-login-backdrop" role="presentation" onClick={(event) => { if(event.target===event.currentTarget && !loginBusy)setLoginOpen(false); }}>
+        <form className="live-login" onSubmit={(event) => {void submitLogin(event);}} aria-label="Connect live RAVIN">
+          <div className="live-login-head"><div><span className="eyebrow">ARRAY / CONNECT</span><h2>Connect RAVIN<span className="title-period">.</span></h2></div><button type="button" onClick={() => setLoginOpen(false)} aria-label="Close" disabled={loginBusy}><X size={18}/></button></div>
+          <p>Use your existing RAVIN account to enable authenticated, text-only AI missions. Passwords are sent only to RAVIN's existing authentication service, and session tokens are held in memory.</p>
+          <label htmlFor="live-email">RAVIN ACCOUNT EMAIL</label>
+          <input id="live-email" type="email" autoComplete="username" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)}/>
+          <label htmlFor="live-password">PASSWORD</label>
+          <input id="live-password" type="password" autoComplete="current-password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)}/>
+          {loginError && <p className="live-login-error" role="alert">{loginError}</p>}
+          <button type="submit" className="launch-button" disabled={loginBusy || !liveApiConfigured()}><span>{loginBusy ? 'CONNECTING...' : 'SIGN IN & CONNECT'}</span><LogIn size={16}/></button>
+          <small>Live RAVIN API: {RAVIN_ARRAY_API ? new URL(RAVIN_ARRAY_API).host : 'Not configured'}. No external tool execution is enabled.</small>
+        </form>
+      </div>}
       {notice && <div className="toast" role="status"><Check size={16} /> {notice}<button type="button" aria-label="Dismiss notice" onClick={() => setNotice('')}><X size={15}/></button></div>}
     </div>
   );
