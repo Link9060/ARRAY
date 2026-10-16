@@ -1,4 +1,4 @@
-export type MissionPhase = 'deploying' | 'running' | 'waiting_approval' | 'succeeded' | 'failed' | 'canceled';
+export type MissionPhase = 'queued' | 'deploying' | 'running' | 'waiting_approval' | 'succeeded' | 'failed' | 'canceled';
 export type ExecutionPolicy = 'review' | 'assist' | 'authorized';
 
 export interface Mission {
@@ -11,7 +11,10 @@ export interface Mission {
   phase: MissionPhase;
   createdAt: number;
   finishedAt?: number;
-  isDemo: true;
+  isDemo: boolean;
+  output?: string;
+  error?: string;
+  startedAt?: number;
 }
 
 export const DEMO_RUN_MS = 24_000;
@@ -28,7 +31,7 @@ export function createDemoMission(
 
 /** Visible demonstration only. Not a live RAVIN worker and not real AI progress. */
 export function advanceDemoMission(mission: Mission, now: number): Mission {
-  if (mission.phase === 'canceled' || mission.phase === 'failed' || mission.phase === 'succeeded') return mission;
+  if (!mission.isDemo || mission.phase === 'canceled' || mission.phase === 'failed' || mission.phase === 'succeeded') return mission;
   const elapsed = Math.max(0, now - mission.createdAt);
   if (elapsed >= DEMO_RUN_MS) return { ...mission, phase: 'succeeded', finishedAt: mission.createdAt + DEMO_RUN_MS };
   const phase: MissionPhase = elapsed < DEMO_DEPLOY_MS ? 'deploying' : 'running';
@@ -36,12 +39,13 @@ export function advanceDemoMission(mission: Mission, now: number): Mission {
 }
 
 export function cancelDemoMission(mission: Mission, now: number): Mission {
-  if (mission.phase === 'succeeded' || mission.phase === 'canceled' || mission.phase === 'failed') return mission;
+  if (!mission.isDemo || mission.phase === 'succeeded' || mission.phase === 'canceled' || mission.phase === 'failed') return mission;
   return { ...mission, phase: 'canceled', finishedAt: now };
 }
 
 export function trajectoryPosition(phase: MissionPhase): number {
   switch (phase) {
+    case 'queued': return 0.04;
     case 'deploying': return 0.13;
     case 'running': return 0.55;
     case 'waiting_approval': return 0.68;
@@ -51,7 +55,7 @@ export function trajectoryPosition(phase: MissionPhase): number {
 }
 
 export function isActiveMission(phase: MissionPhase): boolean {
-  return phase === 'deploying' || phase === 'running' || phase === 'waiting_approval';
+  return phase === 'queued' || phase === 'deploying' || phase === 'running' || phase === 'waiting_approval';
 }
 
 export function formatDuration(ms: number): string {
@@ -61,6 +65,7 @@ export function formatDuration(ms: number): string {
 
 export function phaseLabel(phase: MissionPhase): string {
   return ({
+    queued: 'Queued',
     deploying: 'Deploying',
     running: 'In flight',
     waiting_approval: 'Awaiting approval',
