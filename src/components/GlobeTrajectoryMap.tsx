@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Radio } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Radio, Pause, Play, Crosshair } from 'lucide-react';
 import { createCloudRenderer, fitCanvas } from '../lib/orbit-particle-renderer';
 import { arcPosition, pointIsForeground, projectGlobe, routeForMission, type GlobeRoute, type Projected, type ViewRotation } from '../engine/globe';
 import { demoFlightFraction } from '../engine/flightPath';
@@ -161,6 +161,10 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
   const stateRef = useRef({ missions, selectedMissionId, onSelect, now });
   const targetRef = useRef<ClickTarget[]>([]);
   const yawOffsetRef = useRef(0);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const secondsRef = useRef(0);
+  pausedRef.current = paused;
   stateRef.current = { missions, selectedMissionId, onSelect, now };
 
   useEffect(() => {
@@ -189,14 +193,16 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
     resize();
 
     let frame=0, lastFrame=-1000, disposed=false;
-    const origin=performance.now();
+    let previousTick=performance.now();
     const draw=(time:number)=>{
       if(disposed)return;
       frame=requestAnimationFrame(draw);
       if(document.hidden || time-lastFrame < (reduceMotion ? 250 : 28))return;
       lastFrame=time;
       ctx.clearRect(0,0,width,height);
-      const seconds=reduceMotion?0:(time-origin)/1000;
+      if(!reduceMotion && !pausedRef.current)secondsRef.current+=Math.max(0,Math.min(.1,(time-previousTick)/1000));
+      previousTick=time;
+      const seconds=secondsRef.current;
       const rot:ViewRotation={yaw:seconds*.052+yawOffsetRef.current+.35,pitch:reduceMotion ? -.14 : -.14+Math.sin(seconds*.14)*.028,roll:reduceMotion?0:Math.sin(seconds*.09)*.016};
       drawBackdrop(ctx,width,height,centerX,centerY,radius);
       const state=stateRef.current;
@@ -204,7 +210,13 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
       const timestamp=Date.now();
       const flights:Flight[]=displayed.map(mission=>{
         const route=savedRoute(mission.id);
-        const progress=demoFlightFraction(mission,timestamp);
+        // Live jobs advance on actual server phase changes, NOT elapsed time.
+        const progress=mission.isDemo ? demoFlightFraction(mission,timestamp)
+          : mission.phase==='queued' ? 0
+          : mission.phase==='succeeded' ? 1
+          : mission.phase==='running' ? .52
+          : mission.phase==='waiting_approval' ? .7
+          : .52;
         const track:Projected[]=[];
         for(let i=0;i<=96;i++)track.push(projectGlobe(arcPosition(route,i/96),rot,centerX,centerY,radius));
         const current=projectGlobe(arcPosition(route,progress),rot,centerX,centerY,radius);
@@ -278,10 +290,20 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
     };
   },[]);
 
+  function focusSelected() {
+    const current = missions.find(m => m.id === selectedMissionId);
+    if (!current) return;
+    const target=routeForMission(current.id).start;
+    yawOffsetRef.current=Math.atan2(-target.x,target.z)-secondsRef.current*.052-.35;
+  }
   return (
     <div className="trajectory-map globe-monitor" ref={shellRef}>
-      <div className="map-topline"><span>ORBITAL FLIGHT MONITOR</span><span>PARTICLE GLOBE / SIMULATION <Radio size={13}/></span></div>
-      <canvas ref={canvasRef} aria-label="Rotating ARROW Orbit particle globe with simulated agent flight trajectories. Drag to rotate. Mission list below provides keyboard access." role="img" className="globe-monitor-canvas" />
+      <div className="map-topline"><span>ORBITAL FLIGHT MONITOR</span><span>PARTICLE GLOBE / ABSTRACT FLIGHT PATHS <Radio size={13}/></span></div>
+      <div className="globe-controls" role="group" aria-label="Globe controls">
+        <button type="button" onClick={() => setPaused(value => !value)} aria-pressed={paused} title={paused ? 'Resume globe rotation' : 'Pause globe rotation'}>{paused ? <Play size={13}/> : <Pause size={13}/>} {paused ? 'RESUME' : 'PAUSE'}</button>
+        <button type="button" disabled={!missions.length} onClick={focusSelected} title="Rotate globe to selected mission's launch point"><Crosshair size={13}/> FOCUS MISSION</button>
+      </div>
+      <canvas ref={canvasRef} aria-label="Rotating ARROW Orbit particle globe with abstract demo and real mission status paths. Drag to rotate. Mission list below provides keyboard access." role="img" className="globe-monitor-canvas" />
       {missions.length===0 && <div className="globe-empty">
         <strong>NO MISSIONS IN FLIGHT</strong>
         <span>Run a TEST LAUNCH to preview a flight vector.</span>
