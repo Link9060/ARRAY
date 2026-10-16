@@ -438,3 +438,12 @@ h1 span { color:#a8b5d2; font-weight:400; }
   .connection-actions {justify-content:flex-start;}
   .connection-actions button {padding:10px;}
 }
+
+
+/* Flight Monitor v2 refinement: keyboard-accessible globe operation controls */
+.globe-controls {position:absolute;z-index:5;right:18px;top:47px;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+.globe-controls button {display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #3d516d;background:#142236bb;color:#bed0ee;border-radius:5px;font:9px var(--mono);letter-spacing:.04em;backdrop-filter:blur(7px);}
+.globe-controls button:hover:not(:disabled) {background:#294260;color:white;}
+.globe-controls button:disabled {opacity:.35;cursor:not-allowed;}
+.globe-controls button[aria-pressed="true"] {border-color:#9bb6ec;color:#f3f7ff;}
+@media(max-width:700px) {.globe-controls {top:42px;right:11px;gap:4px;}.globe-controls button {padding:8px;font-size:8px;}}
