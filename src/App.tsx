@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
-  Radar, Radio, ShieldCheck, Sparkles, X, Play,
+  Radar, Radio, ShieldCheck, Sparkles, X, Play, Wifi, LogIn, LogOut, WifiOff,
 } from 'lucide-react';
 import { AGENTS, CATEGORIES, getAgentsForCategory, type Agent, type AgentCategory } from './data/agents';
 import {
@@ -11,6 +11,7 @@ import {
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
+import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
 
 type View = 'array' | 'monitor';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
@@ -137,7 +138,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId,
+  onSelectCategory, onLaunch, launchedAgentId, liveMode,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -148,6 +149,7 @@ function CommandDeck({
   onSelectCategory: (category: AgentCategory) => void;
   onLaunch: () => void;
   launchedAgentId: string | null;
+  liveMode: boolean;
 }) {
   return (
     <section className="command-deck" aria-label="Agent launch controls">
@@ -203,22 +205,22 @@ function CommandDeck({
             >
               <option value="review">Review first</option>
               <option value="assist">Assist only</option>
-              <option value="authorized">Authorized (future)</option>
+              <option value="authorized" disabled={liveMode}>Authorized (future)</option>
             </select>
           </div>
-          <p>Preview only. No real tools or permissions are connected.</p>
+          <p>{liveMode ? 'Real text-only RAVIN worker. No external actions are permitted.' : 'Preview only. No real tools or permissions are connected.'}</p>
           <button
             className="launch-button"
             type="button"
             disabled={!objective.trim() || Boolean(launchedAgentId)}
             onClick={onLaunch}
           >
-            <span>{launchedAgentId ? 'DEPLOYING...' : 'LAUNCH AGENT'}</span>
+            <span>{launchedAgentId ? 'DEPLOYING...' : liveMode ? 'START LIVE MISSION' : 'LAUNCH DEMO AGENT'}</span>
             {launchedAgentId ? <Activity size={18} /> : <ArrowUpRight size={20} />}
           </button>
         </div>
       </div>
-      <div className="deck-footer"><span><span className="demo-marker" /> SIMULATED MISSION ENGINE</span><span>RAVIN ARRAY / BUILD 0.1.0</span></div>
+      <div className="deck-footer"><span><span className="demo-marker" /> {liveMode ? 'AUTHENTICATED RAVIN / TEXT ONLY' : 'SIMULATED MISSION ENGINE'}</span><span>RAVIN ARRAY / BUILD 0.2.0</span></div>
     </section>
   );
 }
@@ -227,7 +229,7 @@ function MissionCard({ mission, now, selected, onSelect }: { mission: Mission; n
   return (
     <button type="button" className={`mission-card ${selected ? 'is-selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
       <div className="mission-card-head">
-        <span className="mission-code">{mission.agentId.toUpperCase()} / SIM</span>
+        <span className="mission-code">{mission.agentId.toUpperCase()} / {mission.isDemo ? 'SIM' : 'LIVE'}</span>
         <span className={`mission-phase phase--${mission.phase}`}><span className="status-pin" /> {phaseLabel(mission.phase)}</span>
       </div>
       <strong>{mission.agentName}</strong>
@@ -242,7 +244,7 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
     <aside className="mission-inspector empty-inspector">
       <span className="eyebrow">MISSION INSPECTOR</span>
       <Radar size={34} strokeWidth={1} />
-      <p>Select a simulated mission to inspect its status and launch details.</p>
+      <p>Select a mission to inspect its status, launch details, and available results.</p>
     </aside>
   );
   const elapsed = (mission.finishedAt ?? now) - mission.createdAt;
@@ -250,23 +252,27 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
   const active = isActiveMission(mission.phase);
   return (
     <aside className="mission-inspector" aria-label="Selected mission details">
-      <span className="eyebrow">MISSION INSPECTOR / SIMULATION</span>
+      <span className="eyebrow">MISSION INSPECTOR / {mission.isDemo ? "SIMULATION" : "LIVE RAVIN"}</span>
       <div className="inspector-top"><div className="inspector-symbol"><Crosshair size={24} /></div><span className="inspector-id">{mission.id.slice(-9)}</span></div>
       <h3>{mission.agentName}</h3>
       <div className="inspector-phase"><span className="status-pin" /> {phaseLabel(mission.phase)}</div>
       <div className="inspector-section"><span className="eyebrow">ASSIGNED OBJECTIVE</span><p>{mission.objective}</p></div>
       <div className="inspector-metrics">
         <div><span>ELAPSED</span><strong>{formatDuration(elapsed)}</strong></div>
-        <div><span>DEMO SEQUENCE</span><strong>{active ? formatDuration(remaining) : '—'}</strong></div>
+        <div><span>{mission.isDemo ? 'DEMO SEQUENCE' : 'ESTIMATED REMAINING'}</span><strong>{mission.isDemo && active ? formatDuration(remaining) : 'UNKNOWN'}</strong></div>
       </div>
-      <p className="inspector-disclaimer"><CircleDot size={13} /> This is an illustrative countdown, not a prediction of AI completion time.</p>
+      <p className="inspector-disclaimer"><CircleDot size={13} /> {mission.isDemo ? 'This is an illustrative countdown, not a prediction of AI completion time.' : 'Server status is real. Trajectory is illustrative; there is no reliable ETA.'}</p>
       <div className="inspector-section"><span className="eyebrow">MISSION SETTINGS</span>
         <div className="inspector-detail"><span>Policy</span><strong>{mission.policy === 'review' ? 'Review first' : mission.policy === 'assist' ? 'Assist only' : 'Authorized (future)'}</strong></div>
-        <div className="inspector-detail"><span>Engine</span><strong>Local simulator</strong></div>
-        <div className="inspector-detail"><span>Live RAVIN output</span><strong>Not connected</strong></div>
+        <div className="inspector-detail"><span>Engine</span><strong>{mission.isDemo ? 'Local simulator' : 'RAVIN / tool-free AI'}</strong></div>
+        <div className="inspector-detail"><span>Output</span><strong>{mission.isDemo ? 'Not generated' : mission.output ? 'Available' : 'Waiting'}</strong></div>
       </div>
-      {active ? <button type="button" className="secondary-action" onClick={() => onCancel(mission.id)}><X size={15} /> Cancel demo mission</button>
-        : <div className="mission-terminal"><Check size={15} /> {mission.phase === 'succeeded' ? 'Demo sequence ended. No AI task was executed.' : 'Demo mission is no longer active.'}</div>}
+      {mission.output && <div className="inspector-section"><span className="eyebrow">RAVIN RESULT / TEXT OUTPUT</span><pre className="mission-output">{mission.output}</pre></div>}
+      {mission.error && <div className="mission-error" role="alert">{mission.error}</div>}
+      {active && (mission.isDemo || mission.phase === 'queued')
+        ? <button type="button" className="secondary-action" onClick={() => onCancel(mission.id)}><X size={15} /> {mission.isDemo ? 'Cancel simulated mission' : 'Cancel queued mission'}</button>
+        : active ? <div className="inspector-disclaimer">Running live jobs cannot be canceled until the backend supports request interruption.</div>
+        : <div className="mission-terminal"><Check size={15} /> {mission.isDemo ? (mission.phase === 'succeeded' ? 'Demo sequence ended. No AI task was executed.' : 'Demo mission is no longer active.') : 'Server-reported state. See the result above when available.'}</div>}
     </aside>
   );
 }
