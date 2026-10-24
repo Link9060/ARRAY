@@ -26,7 +26,7 @@ function object(value: unknown): Record<string, unknown> | null {
 
 export function parseWorkerRun(value: unknown): WorkerRun | null {
   const raw = object(value);
-  if (!raw || !Number.isSafeInteger(raw.id) || Number(raw.id) <= 0 ||
+  if (!raw || typeof raw.id !== 'number' || !Number.isSafeInteger(raw.id) || raw.id <= 0 ||
       typeof raw.html_url !== 'string' ||
       !raw.html_url.startsWith(GROVE_REPO_URL + '/actions/runs/')) return null;
 
