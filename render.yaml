@@ -1,0 +1,21 @@
+# Optional Render Blueprint for the public read-only ARRAY MCP bridge.
+# Creating this file does NOT create a service or incur billing.
+# The owner must explicitly approve deployment in Render.
+services:
+  - type: web
+    name: resonant-array-mcp
+    runtime: node
+    repo: https://github.com/Link9060/ARRAY
+    branch: main
+    rootDir: services/array-mcp
+    plan: free
+    region: ohio
+    autoDeployTrigger: commit
+    buildCommand: npm install --omit=dev --no-audit --no-fund
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_VERSION
+        value: 22.23.3

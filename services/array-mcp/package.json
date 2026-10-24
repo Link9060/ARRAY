@@ -1,0 +1,19 @@
+{
+  "name": "@resonant/array-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only MCP bridge for public Resonant ARRAY Builder activity",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.check.mjs",
+    "check": "node --check server.mjs && node --check github.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^4.0.0"
+  }
+}

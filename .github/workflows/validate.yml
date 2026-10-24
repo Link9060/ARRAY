@@ -26,3 +26,9 @@ jobs:
         run: npm run build
       - name: Unit tests
         run: npm run test
+      - name: Install ARRAY MCP dependencies
+        run: npm install --prefix services/array-mcp --no-audit --no-fund
+      - name: Validate ARRAY MCP
+        run: |
+          npm run check --prefix services/array-mcp
+          npm test --prefix services/array-mcp

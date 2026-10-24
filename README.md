@@ -361,3 +361,26 @@ The user selected the existing **bro cha cho's Workspace** on Render for the liv
 
 See [RAVIN backend PR #6](https://github.com/Link9060/Project-R.A.V.I.N.-1.1/pull/6) and the server's `docs/ARRAY-API.md`.
 
+
+## 14. Grove Builder bridge (October 24, 2026)
+
+A new external-work section in Flight Monitor reads **actual public GitHub Actions run states**
+for `Link9060/Resonant-Grove`'s `array-builder.yml`. This is independent of the
+RAVIN text backend and the local simulator. The feed automatically refreshes
+every 90 seconds while Flight Monitor is open and shows true queued, running,
+success, failure and cancellation states.
+
+**Truthful limitation:** The GitHub Builder workflow exists only on a separate
+Grove feature branch until its pull request is reviewed and merged. ARRAY does
+not yet dispatch or restart GitHub workers. The worker needs a configured model
+and API secret and has not yet completed a verified end-to-end run.
+
+**Implementation:** `src/engine/githubWorkflow.ts` (public API parser, status adapter),
+`src/components/GroveWorkerPanel.tsx` (read-only UI), and
+`tests/githubWorkflow.test.ts` (status integrity). Authentication credentials
+are never placed in the frontend.
+
+Next: review and merge both PRs, add Grove model configuration,
+run one small Builder objective, inspect the draft code PR and build checks,
+then implement a server-authorized dispatch endpoint with audit logs and
+a bounded watchdog. Do not expose a GitHub token in the browser.
