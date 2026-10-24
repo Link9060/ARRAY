@@ -447,3 +447,36 @@ h1 span { color:#a8b5d2; font-weight:400; }
 .globe-controls button:disabled {opacity:.35;cursor:not-allowed;}
 .globe-controls button[aria-pressed="true"] {border-color:#9bb6ec;color:#f3f7ff;}
 @media(max-width:700px) {.globe-controls {top:42px;right:11px;gap:4px;}.globe-controls button {padding:8px;font-size:8px;}}
+
+
+/* ARRAY / verified external worker telemetry. Separate from simulation and RAVIN text missions. */
+.grove-worker-panel {margin:22px 0 4px;padding:20px;border:1px solid #34465e;border-radius:10px;background:linear-gradient(140deg,#142033,#0d1723 64%);min-width:0;}
+.grove-worker-head {display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.grove-worker-head h3 {display:flex;align-items:center;gap:9px;margin:9px 0 0;color:#e5edf9;font-size:17px;font-weight:520;letter-spacing:-.025em;}
+.grove-worker-head h3 svg {color:#b4c9ed;flex-shrink:0;}
+.grove-worker-head h3 span {font:8px var(--mono);color:#a3c9be;letter-spacing:.08em;border:1px solid #4c796f;padding:5px 6px;border-radius:4px;}
+.grove-worker-head a {display:inline-flex;align-items:center;gap:7px;color:#bcd0ef;border:1px solid #445e81;border-radius:5px;padding:9px 11px;font:9px var(--mono);text-decoration:none;white-space:nowrap;}
+.grove-worker-head a:hover {background:#243a56;color:#fff;}
+.grove-worker-description {margin:12px 0 15px;font-size:11px;color:#9aabc2;line-height:1.6;}
+.grove-worker-empty,.grove-worker-error {display:flex;align-items:center;gap:8px;line-height:1.65;margin:0;padding:15px;border:1px dashed #374c66;border-radius:7px;background:#101b29;color:#a5bad5;font-size:11px;}
+.grove-worker-error {border-color:#805751;color:#efb8b8;flex-wrap:wrap;}
+.grove-worker-error a {color:#e8d2c9;}
+.grove-worker-runs {display:flex;flex-direction:column;gap:8px;}
+.grove-worker-run {display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #32455c;background:#101b29;border-radius:6px;min-width:0;text-decoration:none;color:#bccbe1;}
+.grove-worker-run:hover,.grove-worker-run:focus-visible {border-color:#829bc4;background:#1c2a3e;}
+.grove-worker-pin {width:7px;height:7px;border-radius:50%;background:#91a5c5;flex-shrink:0;}
+.grove-worker-pin--running {background:#8ec8e7;box-shadow:0 0 9px #77bbdc8a;}
+.grove-worker-pin--success {background:#8fd4b7;}
+.grove-worker-pin--failure {background:#e4a09c;}
+.grove-worker-pin--cancelled {background:#a98f95;}
+.grove-worker-meta {display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
+.grove-worker-meta strong {font-size:11px;font-weight:500;color:#e5edfa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.grove-worker-meta small {font:9px var(--mono);color:#7e92af;}
+.grove-worker-result {font:9px var(--mono);color:#b0c3dd;letter-spacing:.02em;white-space:nowrap;}
+.grove-worker-foot {display:flex;gap:12px;justify-content:space-between;margin-top:14px;font:8px var(--mono);color:#6e829f;letter-spacing:.07em;}
+@media(max-width:700px) {
+  .grove-worker-panel {padding:14px;}
+  .grove-worker-head h3 {flex-wrap:wrap;}
+  .grove-worker-run {gap:8px;padding:10px;}
+  .grove-worker-result {font-size:8px;white-space:normal;text-align:right;max-width:95px;}
+}
