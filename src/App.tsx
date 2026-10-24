@@ -11,6 +11,7 @@ import {
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
+import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
 
 type View = 'array' | 'monitor';
@@ -300,6 +301,7 @@ function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, o
           </div>
         </div>
         <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
+        <GroveWorkerPanel />
         <div className="mission-list-title"><span>MISSION LOG <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></span><span>NEWEST FIRST</span></div>
         <div className="mission-list">
           {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> The flight log is empty. Use Test Launch above to fire a visual diagnostic, or deploy an agent.</div>}
