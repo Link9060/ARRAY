@@ -9,7 +9,7 @@ function statusText(status: WorkerRun['status']): string {
   return ({
     queued: 'QUEUED',
     running: 'RUNNING',
-    success: 'FINISHED / PR STEP PASSED',
+    success: 'WORKFLOW PASSED',
     failure: 'FAILED',
     cancelled: 'CANCELLED',
     other: 'CHECK RUN',
@@ -69,8 +69,8 @@ export default function GroveWorkerPanel() {
         </a>
       </div>
       <p className="grove-worker-description">
-        Real GitHub Actions status, not simulated missions. Builder launches from GitHub
-        after owner setup; ARRAY cannot dispatch the worker from this panel yet.
+        Verified GitHub Actions runs, owner-issued ARRAY tasks, and draft code reviews.
+        This panel is read-only; GPT can dispatch owner-authorized tasks through the GitHub connection.
       </p>
       {error && <p className="grove-worker-error" role="status">{error} <a href={GROVE_ACTIONS_URL} target="_blank" rel="noopener noreferrer">View on GitHub</a></p>}
       {!snapshot && !error && <p className="grove-worker-empty"><RefreshCw size={14} aria-hidden="true" /> Connecting to public GitHub workflow history…</p>}
