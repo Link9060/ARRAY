@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Activity, ExternalLink, RefreshCw } from 'lucide-react';
 import {
-  GROVE_ACTIONS_URL, fetchGroveWorkerRuns,
-  type WorkerRun, type WorkerRunsSnapshot,
+  GROVE_ACTIONS_URL, fetchGroveWorkerRuns, fetchGroveReviewQueue,
+  type WorkerRun, type WorkerRunsSnapshot, type GroveReviewQueue,
 } from '../engine/githubWorkflow';
 
 function statusText(status: WorkerRun['status']): string {
   return ({
     queued: 'QUEUED',
     running: 'RUNNING',
-    success: 'FINISHED / PR STEP PASSED',
+    success: 'WORKFLOW PASSED',
     failure: 'FAILED',
     cancelled: 'CANCELLED',
     other: 'CHECK RUN',
@@ -19,6 +19,8 @@ function statusText(status: WorkerRun['status']): string {
 export default function GroveWorkerPanel() {
   const [snapshot, setSnapshot] = useState<WorkerRunsSnapshot | null>(null);
   const [error, setError] = useState('');
+  const [queue, setQueue] = useState<GroveReviewQueue | null>(null);
+  const [queueError, setQueueError] = useState('');
   const [refreshing, setRefreshing] = useState(true);
 
   useEffect(() => {
@@ -35,13 +37,23 @@ export default function GroveWorkerPanel() {
         if (alive && !controller.signal.aborted) {
           setError(cause instanceof Error ? cause.message : 'Could not read GitHub status.');
         }
+      }
+      try {
+        const result = await fetchGroveReviewQueue(controller.signal);
+        if (alive) { setQueue(result); setQueueError(''); }
+      } catch (cause) {
+        if (alive && !controller.signal.aborted) {
+          setQueueError(cause instanceof Error ? cause.message : 'Cannot load review queue.');
+        }
       } finally {
         if (alive) setRefreshing(false);
         busy = false;
       }
     }
     void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 90_000);
+    // Three public GitHub requests per refresh. 4-minute cadence avoids the usual
+    // unauthenticated 60-requests-per-hour budget in an ordinary single tab.
+    const timer = window.setInterval(() => { void refresh(); }, 240_000);
     return () => { alive = false; controller.abort(); window.clearInterval(timer); };
   }, []);
 
@@ -57,8 +69,8 @@ export default function GroveWorkerPanel() {
         </a>
       </div>
       <p className="grove-worker-description">
-        Real GitHub Actions status, not simulated missions. Builder launches from GitHub
-        after owner setup; ARRAY cannot dispatch the worker from this panel yet.
+        Verified GitHub Actions runs, owner-issued ARRAY tasks, and draft code reviews.
+        This panel is read-only; GPT can dispatch owner-authorized tasks through the GitHub connection.
       </p>
       {error && <p className="grove-worker-error" role="status">{error} <a href={GROVE_ACTIONS_URL} target="_blank" rel="noopener noreferrer">View on GitHub</a></p>}
       {!snapshot && !error && <p className="grove-worker-empty"><RefreshCw size={14} aria-hidden="true" /> Connecting to public GitHub workflow history…</p>}
@@ -79,9 +91,37 @@ export default function GroveWorkerPanel() {
           ))}
         </div>
       )}
+      <div className="grove-review-section" aria-label="Grove Builder review queue">
+        <div className="grove-review-title">
+          <span>CODE REVIEW QUEUE</span>
+          <span>{queue ? queue.reviews.length + ' OPEN DRAFTS / ' + queue.tasks.length + ' OPEN TASKS' : 'SYNCING'}</span>
+        </div>
+        {queueError && <p className="grove-worker-error" role="status">{queueError}</p>}
+        {!queue && !queueError && <p className="grove-worker-empty">Checking GitHub for Builder pull requests…</p>}
+        {queue && queue.reviews.length === 0 && <p className="grove-worker-empty">No Builder pull requests awaiting review.</p>}
+        {queue && queue.reviews.map(pr => (
+          <a key={'pr-' + pr.number} className="grove-review-entry" href={pr.url} target="_blank" rel="noopener noreferrer">
+            <span className="grove-review-label">PR #{pr.number} <span>{pr.isDraft ? 'DRAFT / REVIEW' : 'OPEN / REVIEW'}</span></span>
+            <strong>{pr.title}</strong>
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        ))}
+        {queue && queue.tasks.length > 0 && (
+          <>
+            <div className="grove-review-title"><span>OPEN ARRAY REQUESTS</span><span>GITHUB ISSUES</span></div>
+            {queue.tasks.slice(0, 5).map(task => (
+              <a key={'issue-' + task.number} className="grove-review-entry" href={task.url} target="_blank" rel="noopener noreferrer">
+                <span className="grove-review-label">ISSUE #{task.number} <span>{task.mode.toUpperCase()}</span></span>
+                <strong>{task.title}</strong>
+                <ExternalLink size={12} aria-hidden="true" />
+              </a>
+            ))}
+          </>
+        )}
+      </div>
       <div className="grove-worker-foot">
         <span>READ-ONLY TELEMETRY</span>
-        <span>{refreshing ? 'SYNCING…' : 'CHECKS EVERY 90 SEC'}</span>
+        <span>{refreshing ? 'SYNCING…' : 'CHECKS EVERY 4 MIN'}</span>
       </div>
     </section>
   );

@@ -480,3 +480,16 @@ h1 span { color:#a8b5d2; font-weight:400; }
   .grove-worker-run {gap:8px;padding:10px;}
   .grove-worker-result {font-size:8px;white-space:normal;text-align:right;max-width:95px;}
 }
+
+
+/* Public GitHub task and PR review queue, no editing/merging controls. */
+.grove-review-section{border-top:1px solid #35465d;margin-top:20px;padding-top:17px;display:flex;flex-direction:column;gap:8px;}
+.grove-review-title{display:flex;justify-content:space-between;gap:8px;margin:4px 0 6px;color:#93a9c9;font:9px var(--mono);letter-spacing:.06em;}
+.grove-review-title span:last-child{color:#7289a5;font-size:8px;}
+.grove-review-entry{display:flex;align-items:center;gap:13px;padding:10px 12px;border:1px solid #30425a;border-radius:6px;background:#111d2b;color:#c7d6ee;text-decoration:none;min-width:0;}
+.grove-review-entry:hover,.grove-review-entry:focus-visible{background:#1b3049;border-color:#6b86b0;}
+.grove-review-entry strong{flex:1;min-width:0;font-size:11px;font-weight:500;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
+.grove-review-entry svg{flex-shrink:0;color:#8299bb;}
+.grove-review-label{display:flex;flex-direction:column;gap:5px;min-width:92px;color:#b9cdec;font:9px var(--mono);}
+.grove-review-label span{color:#bdab7f;font:8px var(--mono);}
+@media(max-width:700px){.grove-review-entry{gap:8px;}.grove-review-label{min-width:70px;}.grove-review-entry strong{font-size:10px;}.grove-review-title{flex-wrap:wrap;}}

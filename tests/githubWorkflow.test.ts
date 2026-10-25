@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseWorkerRun, parseWorkerRunsPayload, GROVE_ACTIONS_URL } from '../src/engine/githubWorkflow';
+import { parseWorkerRun, parseWorkerRunsPayload, parseTaskIssue, parseReviewPr, GROVE_ACTIONS_URL } from '../src/engine/githubWorkflow';
 
 const base = {
   id: 4567,
@@ -39,5 +39,36 @@ describe('Grove Builder external telemetry', () => {
   it('never treats a completed run with no success conclusion as a finished PR', () => {
     expect(parseWorkerRun({ ...base, conclusion: null })?.status).toBe('other');
     expect(parseWorkerRun({ ...base, conclusion: 'timed_out' })?.status).toBe('failure');
+  });
+});
+
+
+describe('Grove review queue parsing', () => {
+  it('only shows genuine owner-created ARRAY issues', () => {
+    const item = {
+      number: 8,
+      title: '[ARRAY-CODE] Improve New Seed card',
+      html_url: 'https://github.com/Link9060/Resonant-Grove/issues/8',
+      user: { login: 'Link9060' },
+    };
+    expect(parseTaskIssue(item)).toMatchObject({ number: 8, mode: 'code' });
+    expect(parseTaskIssue({ ...item, title: '[ARRAY] Improve copy' })?.mode).toBe('copy');
+    expect(parseTaskIssue({ ...item, user: { login: 'someone-else' } })).toBeNull();
+    expect(parseTaskIssue({ ...item, html_url: 'https://evil.example/issues/8' })).toBeNull();
+    expect(parseTaskIssue({ ...item, pull_request: { url: 'https://example.com' } })).toBeNull();
+    expect(parseTaskIssue({ ...item, title: 'Ordinary issue' })).toBeNull();
+  });
+
+  it('only shows genuine ARRAY Builder PRs and preserves draft state', () => {
+    const pr = {
+      number: 9, title: 'ARRAY Builder: code improvement',
+      html_url: 'https://github.com/Link9060/Resonant-Grove/pull/9',
+      head: { ref: 'array/builder-123456' },
+      draft: true, updated_at: '2026-10-24T18:00:00Z',
+    };
+    expect(parseReviewPr(pr)).toMatchObject({ number: 9, isDraft: true });
+    expect(parseReviewPr({ ...pr, draft: false })?.isDraft).toBe(false);
+    expect(parseReviewPr({ ...pr, head: { ref: 'unrelated' } })).toBeNull();
+    expect(parseReviewPr({ ...pr, html_url: 'https://elsewhere.example/pull/9' })).toBeNull();
   });
 });
