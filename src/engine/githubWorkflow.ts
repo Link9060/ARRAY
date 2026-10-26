@@ -81,7 +81,8 @@ export type ArrayTask = {
   number: number;
   title: string;
   url: string;
-  mode: 'copy' | 'code';
+  mode: 'copy' | 'code' | 'queue';
+  phase?: 'waiting-approval' | 'approved' | 'dispatched';
 };
 export type ReviewPr = {
   number: number;
@@ -100,9 +101,14 @@ export function parseTaskIssue(input: unknown): ArrayTask | null {
       typeof raw.title !== 'string' || typeof raw.html_url !== 'string' || raw.pull_request ||
       !raw.html_url.startsWith(GROVE_REPO_URL + '/issues/')) return null;
   const mode = raw.title.startsWith('[ARRAY-CODE] ') ? 'code' :
-    raw.title.startsWith('[ARRAY] ') ? 'copy' : null;
+    raw.title.startsWith('[ARRAY] ') ? 'copy' :
+    raw.title.startsWith('[ARRAY-QUEUE] ') ? 'queue' : null;
   if (!mode) return null;
-  return { number: raw.number, title: raw.title.slice(0, 150), url: raw.html_url, mode };
+  const labels = Array.isArray(raw.labels) ? raw.labels.map(label => object(label)?.name) : [];
+  const phase = mode === 'queue' ?
+    labels.includes('array-dispatched') ? 'dispatched' :
+    labels.includes('array-ready') ? 'approved' : 'waiting-approval' : undefined;
+  return { number: raw.number, title: raw.title.slice(0, 150), url: raw.html_url, mode, phase };
 }
 
 export function parseReviewPr(input: unknown): ReviewPr | null {
