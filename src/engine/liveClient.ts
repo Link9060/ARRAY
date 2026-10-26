@@ -28,6 +28,8 @@ export function liveApiConfigured(): boolean {
 }
 export function isLiveAuthenticated(): boolean { return Boolean(session?.accessToken); }
 export function signOutLive(): void { session = null; }
+/** Browser-safe JWT from the existing RAVIN/Supabase account, not a service key. */
+export async function getLiveAccessToken(): Promise<string> { return token(); }
 
 async function authRequest(body: unknown): Promise<{ session?: { access_token: string; refresh_token?: string; expires_in?: number; expires_at?: number }; error?: string }> {
   const response = await fetch(AUTH_ENDPOINT, {
