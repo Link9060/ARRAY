@@ -13,6 +13,7 @@ import {
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
+import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
 
 type View = 'array' | 'monitor';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
@@ -330,6 +331,8 @@ export default function App() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [liveError, setLiveError] = useState('');
+  const [cloudReady, setCloudReady] = useState(false);
+  const [cloudError, setCloudError] = useState('');
 
   const selectedAgent = AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0];
   const activeCount = missions.filter((mission) => isActiveMission(mission.phase)).length;
@@ -368,12 +371,27 @@ export default function App() {
   useEffect(() => {
     if (!liveConnected) return;
     let stale = false;
+    const lastSavedPhase = new Map<string,string>();
     const poll = async () => {
       try {
         const remote = await listLiveMissions();
         if (stale) return;
-        setMissions(previous => [...remote, ...previous.filter(m => m.isDemo)].sort((a,b) => b.createdAt - a.createdAt).slice(0,50));
+        setMissions(previous => {
+          const all = [...remote, ...previous];
+          return [...new Map(all.map(m => [m.id, m])).values()]
+            .sort((a,b) => b.createdAt - a.createdAt).slice(0,50);
+        });
         setLiveError('');
+        if (cloudReady) {
+          for (const mission of remote) {
+            const signature = [mission.phase, mission.finishedAt, mission.output, mission.error].join('/');
+            if (lastSavedPhase.get(mission.id) === signature) continue;
+            lastSavedPhase.set(mission.id, signature);
+            void storeMission(mission).catch(error =>
+              setCloudError(error instanceof Error ? error.message : 'Supabase history save failed.')
+            );
+          }
+        }
       } catch(error) {
         if (!stale) setLiveError(error instanceof Error ? error.message : 'Live mission refresh failed.');
       }
@@ -381,7 +399,7 @@ export default function App() {
     void poll();
     const timer = window.setInterval(() => { void poll(); }, 4000);
     return () => { stale=true; window.clearInterval(timer); };
-  }, [liveConnected]);
+  }, [liveConnected, cloudReady]);
 
   const displayTime = useMemo(() => new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }), [now]);
 
@@ -396,6 +414,7 @@ export default function App() {
       try {
         const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy);
         setMissions(previous => [mission, ...previous].slice(0,50));
+        if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
         setObjective('');
         setNotice(`${selectedAgent.name} submitted to live RAVIN. Text-only mission queued.`);
@@ -415,6 +434,7 @@ export default function App() {
       policy,
     });
     setMissions(previous => [mission, ...previous].slice(0,50));
+    if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
     setSelectedMissionId(mission.id);
     setLaunchedAgentId(selectedAgent.id);
     setObjective('');
@@ -426,21 +446,42 @@ export default function App() {
     setLoginBusy(true); setLoginError('');
     try {
       await signInLive(loginEmail, loginPassword);
-      await listLiveMissions();
-      setLiveConnected(true); setLiveMode(true);
+      resetArrayCloudIdentity();
+      let saved: Mission[] = [];
+      try {
+        saved = await loadSavedMissions();
+        setCloudReady(true); setCloudError('');
+      } catch (error) {
+        setCloudReady(false);
+        setCloudError(error instanceof Error ? error.message : 'Cloud history unavailable.');
+      }
+      let remote: Mission[] = [];
+      let serverOnline = false;
+      try {
+        remote = await listLiveMissions();
+        serverOnline = true; setLiveError('');
+      } catch (error) {
+        setLiveError(error instanceof Error ? error.message : 'RAVIN worker server is offline.');
+      }
+      setMissions(previous => {
+        const all = [...remote, ...saved, ...previous.filter(m => m.isDemo)];
+        return [...new Map(all.map(m => [m.id, m])).values()]
+          .sort((a,b) => b.createdAt - a.createdAt).slice(0,50);
+      });
+      setLiveConnected(true); setLiveMode(serverOnline);
       setLoginOpen(false); setLoginPassword('');
       if (policy === 'authorized') setPolicy('review');
-      setNotice('RAVIN authenticated and responding. Text-only missions enabled.');
+      setNotice(serverOnline ? 'RAVIN connected. Supabase mission history checked.' : 'Account authenticated. RAVIN server is unavailable; Supabase history may still sync.');
     } catch(error) {
-      signOutLive();
+      signOutLive(); resetArrayCloudIdentity(); setCloudReady(false);
       setLoginError(error instanceof Error ? error.message : 'Could not connect to RAVIN.');
     } finally { setLoginBusy(false); }
   }
   function disconnectLive() {
-    signOutLive();
-    setLiveConnected(false); setLiveMode(false);
-    setMissions(previous => previous.filter(m => m.isDemo));
-    setNotice('Disconnected from RAVIN. Demo mode remains available.');
+    signOutLive(); resetArrayCloudIdentity();
+    setLiveConnected(false); setLiveMode(false); setCloudReady(false); setCloudError('');
+    setMissions([]);
+    setNotice('Signed out. Account mission history is no longer shown.');
   }
 
   function launchTest() {
@@ -452,6 +493,7 @@ export default function App() {
       policy: 'assist',
     });
     setMissions((previous) => [mission, ...previous].slice(0, 30));
+    if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
     setSelectedMissionId(mission.id);
     setView('monitor');
     setNotice('Test vector launched in simulation mode. No real agent or hardware was activated.');
@@ -461,13 +503,16 @@ export default function App() {
     const mission = missions.find(item => item.id === id);
     if (!mission) return;
     if (mission.isDemo) {
-      setMissions(previous => previous.map(item => item.id === id ? cancelDemoMission(item, Date.now()) : item));
+      const canceled = cancelDemoMission(mission, Date.now());
+      setMissions(previous => previous.map(item => item.id === id ? canceled : item));
+      if (cloudReady) void storeMission(canceled).catch(error => setCloudError(String(error)));
       setNotice('Local demo mission canceled.');
       return;
     }
     try {
       const canceled = await cancelQueuedLiveMission(id);
       setMissions(previous => previous.map(item => item.id === id ? canceled : item));
+      if (cloudReady) void storeMission(canceled).catch(error => setCloudError(String(error)));
       setNotice('Queued live mission canceled.');
     } catch(error) {
       setNotice(error instanceof Error ? error.message : 'Live cancel failed.');
@@ -491,13 +536,14 @@ export default function App() {
           <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONAL ENVIRONMENT</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
-          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}</div>
+          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
           <div className="connection-actions">
             <button type="button" className={!liveMode ? 'active' : ''} onClick={() => { setLiveMode(false); setPolicy('review'); }} aria-pressed={!liveMode}>SIMULATION</button>
             <button type="button" className={liveMode ? 'active' : ''} onClick={() => { if(liveConnected){setLiveMode(true);if(policy==='authorized')setPolicy('review');}else {setLoginError('');setLoginOpen(true);} }} aria-pressed={liveMode} disabled={!liveApiConfigured()}>{liveConnected ? <Wifi size={13}/> : <LogIn size={13}/>} LIVE RAVIN</button>
             {liveConnected && <button type="button" className="disconnect-action" onClick={disconnectLive} title="Sign out of live RAVIN"><LogOut size={13}/> DISCONNECT</button>}
           </div>
         </div>
+        {cloudError && liveConnected && <p className="connection-error" role="status"><WifiOff size={14}/> Supabase history: {cloudError}</p>}
         {liveError && <p className="connection-error" role="alert"><WifiOff size={14}/> {liveError}</p>}
         <div className="stats-strip">
           <span><span className="strip-indicator" /> SYSTEM ONLINE <span className="strip-separator">/</span> {liveMode ? 'LIVE TEXT MISSIONS' : 'INTERFACE PREVIEW'}</span>
