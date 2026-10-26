@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseWorkerRun, parseWorkerRunsPayload, parseTaskIssue, parseReviewPr, GROVE_ACTIONS_URL } from '../src/engine/githubWorkflow';
+import { parseWorkerRun, parseWorkerRunsPayload, parseTaskIssue, parseReviewPr, GROVE_ACTIONS_URL, SUPERVISOR_ACTIONS_URL } from '../src/engine/githubWorkflow';
 
 const base = {
   id: 4567,
@@ -70,5 +70,25 @@ describe('Grove review queue parsing', () => {
     expect(parseReviewPr({ ...pr, draft: false })?.isDraft).toBe(false);
     expect(parseReviewPr({ ...pr, head: { ref: 'unrelated' } })).toBeNull();
     expect(parseReviewPr({ ...pr, html_url: 'https://elsewhere.example/pull/9' })).toBeNull();
+  });
+});
+
+describe('ARRAY Supervisor heartbeat and mission queue', () => {
+  it('uses the real dedicated GitHub Actions supervisor workflow', () => {
+    expect(SUPERVISOR_ACTIONS_URL).toBe('https://github.com/Link9060/Resonant-Grove/actions/workflows/array-supervisor.yml');
+  });
+
+  it('surfaces owner-created mission queue approval phases', () => {
+    const task = {
+      number: 32,
+      title: '[ARRAY-QUEUE] Improve one helper sentence',
+      html_url: 'https://github.com/Link9060/Resonant-Grove/issues/32',
+      user: { login: 'Link9060' },
+      labels: [{ name: 'array-copy' }],
+    };
+    expect(parseTaskIssue(task)).toMatchObject({ number: 32, mode: 'queue', phase: 'waiting-approval' });
+    expect(parseTaskIssue({ ...task, labels: [...task.labels, { name: 'array-ready' }] })?.phase).toBe('approved');
+    expect(parseTaskIssue({ ...task, labels: [...task.labels, { name: 'array-dispatched' }] })?.phase).toBe('dispatched');
+    expect(parseTaskIssue({ ...task, user: { login: 'someone-else' } })).toBeNull();
   });
 });
