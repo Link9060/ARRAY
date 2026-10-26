@@ -493,3 +493,23 @@ h1 span { color:#a8b5d2; font-weight:400; }
 .grove-review-label{display:flex;flex-direction:column;gap:5px;min-width:92px;color:#b9cdec;font:9px var(--mono);}
 .grove-review-label span{color:#bdab7f;font:8px var(--mono);}
 @media(max-width:700px){.grove-review-entry{gap:8px;}.grove-review-label{min-width:70px;}.grove-review-entry strong{font-size:10px;}.grove-review-title{flex-wrap:wrap;}}
+
+
+/* Shared RAVIN authentication: Google OAuth entry alongside email/password. */
+.live-google-button {
+  min-height: 46px; width: 100%; display: flex; align-items: center;
+  justify-content: center; gap: 11px; padding: 10px 16px; margin-top: 6px;
+  border: 1px solid #8598b5; border-radius: 7px; background: #eef2f9;
+  color: #1e2939; font: 600 11px var(--mono); letter-spacing: .05em;
+  transition: background .16s, border-color .16s;
+}
+.live-google-button:hover:not(:disabled) { background: #fff; border-color: #fff; }
+.live-google-button:disabled { opacity: .45; }
+.google-mark {
+  width: 22px; height: 22px; display: inline-grid; place-items: center;
+  border-radius: 50%; color: #4285f4; background: #fff; border: 1px solid #d8dfea;
+  font: 700 17px/1 system-ui, sans-serif; letter-spacing: -.07em;
+}
+.live-login-divider { display: flex; align-items: center; gap: 12px; color: #7185a0; font: 9px var(--mono); letter-spacing: .12em; margin: 3px 0; }
+.live-login-divider::before, .live-login-divider::after { content: ''; flex: 1; height: 1px; background: #35445a; }
+.live-login > .google-setup-hint { color: #cfb788; }
