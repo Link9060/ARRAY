@@ -384,3 +384,49 @@ Next: review and merge both PRs, add Grove model configuration,
 run one small Builder objective, inspect the draft code PR and build checks,
 then implement a server-authorized dispatch endpoint with audit logs and
 a bounded watchdog. Do not expose a GitHub token in the browser.
+
+
+## 15. Google sign-in for ARRAY (2026-10-26)
+
+ARRAY offers **Continue with Google** next to its existing email/password login.
+The Google OAuth flow uses the same Supabase Auth project as RAVIN, so the
+resulting Supabase access token is submitted to the existing RAVIN mission API.
+It uses SHA-256 PKCE (no password or Google access token exposed to ARRAY).
+Only a one-time PKCE verifier is kept in `sessionStorage`; ARRAY's RAVIN
+access and refresh tokens remain in memory and are cleared on disconnect.
+A page refresh requires signing in again, just as with the original login.
+No tool permissions or agent execution policy is changed.
+
+**External configuration required before this button works:**
+
+1. In the Google Cloud console, register a Web Application OAuth client
+   for your ARRAY site. Use Google's minimal `openid`, `email`, and
+   `profile` scopes. Create a Google OAuth client ID and secret.
+2. In the **existing RAVIN Supabase project** (ref:
+   `bzjudqhjrbwglxdfbkmj`), open Authentication > Providers > Google,
+   enable it, and enter the Google client ID and secret there, **never in
+   GitHub source code or frontend environment variables**. Use
+   `https://bzjudqhjrbwglxdfbkmj.supabase.co/auth/v1/callback`
+   as the authorized Google OAuth redirect URI.
+3. In Supabase Authentication > URL Configuration, allow the full ARRAY
+   deployment URL (for GitHub Pages typically
+   `https://link9060.github.io/ARRAY/`) and any legitimate development
+   callback URLs (for example `http://localhost:5173/`). The app
+   redirects to `window.location.origin + window.location.pathname`.
+4. Copy the **publishable** Supabase API key (starts with
+   `sb_publishable_`) into the ARRAY GitHub repository **Actions
+   variable** named `RAVIN_SUPABASE_PUBLISHABLE_KEY`. The Pages build
+   maps this to `VITE_RAVIN_SUPABASE_PUBLISHABLE_KEY`. For local Vite
+   development, set `VITE_RAVIN_SUPABASE_PUBLISHABLE_KEY` in `.env.local`.
+   Publishable keys are designed for browser use; never use a secret
+   key, `service_role` key, or Google client secret.
+5. Re-run the Pages workflow or deploy a new commit after setting the variable.
+   Test Google login and then confirm the RAVIN API accepts the session.
+   Provider settings and a real signed-in browser test **were not
+   validated automatically**. A Google account's relationship to an
+   existing email/password account should be checked before relying on
+   identity linking. Supabase handles identities according to its
+   provider-linking rules.
+
+If the public key is absent, the Google button is disabled with a setup hint.
+Email/password sign-in and Simulation mode continue to work.
