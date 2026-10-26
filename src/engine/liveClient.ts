@@ -49,6 +49,11 @@ function saveSession(data: { access_token: string; refresh_token?: string; expir
     expiresAt:data.expires_at ? data.expires_at * 1000 : Date.now() + (data.expires_in || 3600) * 1000,
   };
 }
+/** Adopt the verified Supabase session returned by Google PKCE exchange. */
+export function acceptOAuthSession(data: { access_token: string; refresh_token: string; expires_in?: number; expires_at?: number }): void {
+  if (!data.access_token || !data.refresh_token) throw new Error('Incomplete Google session.');
+  saveSession(data);
+}
 export async function signInLive(email: string, password: string): Promise<void> {
   validApi(); // Fail early: never ask for a password for a disconnected backend.
   if (!email.trim() || !password) throw new Error('Email and password are required.');
