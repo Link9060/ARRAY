@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, ExternalLink, RefreshCw } from 'lucide-react';
 import {
-  GROVE_ACTIONS_URL, fetchGroveWorkerRuns, fetchGroveReviewQueue,
+  GROVE_ACTIONS_URL, SUPERVISOR_ACTIONS_URL, fetchGroveWorkerRuns, fetchGroveReviewQueue, fetchSupervisorRuns,
   type WorkerRun, type WorkerRunsSnapshot, type GroveReviewQueue,
 } from '../engine/githubWorkflow';
 
@@ -21,6 +21,8 @@ export default function GroveWorkerPanel() {
   const [error, setError] = useState('');
   const [queue, setQueue] = useState<GroveReviewQueue | null>(null);
   const [queueError, setQueueError] = useState('');
+  const [supervisor, setSupervisor] = useState<WorkerRunsSnapshot | null>(null);
+  const [supervisorError, setSupervisorError] = useState('');
   const [refreshing, setRefreshing] = useState(true);
 
   useEffect(() => {
@@ -45,15 +47,23 @@ export default function GroveWorkerPanel() {
         if (alive && !controller.signal.aborted) {
           setQueueError(cause instanceof Error ? cause.message : 'Cannot load review queue.');
         }
+      }
+      try {
+        const result = await fetchSupervisorRuns(controller.signal);
+        if (alive) { setSupervisor(result); setSupervisorError(''); }
+      } catch (cause) {
+        if (alive && !controller.signal.aborted) {
+          setSupervisorError(cause instanceof Error ? cause.message : 'Cannot load supervisor status.');
+        }
       } finally {
         if (alive) setRefreshing(false);
         busy = false;
       }
     }
     void refresh();
-    // Three public GitHub requests per refresh. 4-minute cadence avoids the usual
-    // unauthenticated 60-requests-per-hour budget in an ordinary single tab.
-    const timer = window.setInterval(() => { void refresh(); }, 240_000);
+    // Four public GitHub requests every 6 minutes, instead of four per 4 minutes,
+    // to give reasonable headroom below unauthenticated GitHub API rate limits.
+    const timer = window.setInterval(() => { void refresh(); }, 360_000);
     return () => { alive = false; controller.abort(); window.clearInterval(timer); };
   }, []);
 
@@ -91,6 +101,29 @@ export default function GroveWorkerPanel() {
           ))}
         </div>
       )}
+      <div className="grove-review-section" aria-label="ARRAY Supervisor scheduled heartbeat">
+        <div className="grove-review-title">
+          <span>ARRAY SUPERVISOR / 15-MIN HEARTBEAT</span>
+          <a href={SUPERVISOR_ACTIONS_URL} target="_blank" rel="noopener noreferrer">
+            VIEW HEARTBEATS <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        </div>
+        <p className="grove-worker-description">
+          GitHub checks mission state every 15 minutes (best effort). This does not execute an
+          ongoing GPT conversation. Only owner-approved queue issues can be dispatched.
+        </p>
+        {supervisorError && <p className="grove-worker-error" role="status">{supervisorError}</p>}
+        {!supervisor && !supervisorError && <p className="grove-worker-empty">Fetching live Supervisor runs…</p>}
+        {supervisor && !supervisor.configured && <p className="grove-worker-empty">Supervisor workflow not detected.</p>}
+        {supervisor?.configured && supervisor.runs.length === 0 && <p className="grove-worker-empty">No Supervisor heartbeats recorded yet.</p>}
+        {supervisor?.runs.slice(0, 2).map(run => (
+          <a key={'supervisor-' + run.id} className="grove-review-entry" href={run.url} target="_blank" rel="noopener noreferrer">
+            <span className="grove-review-label">RUN #{run.id}<span>{statusText(run.status)}</span></span>
+            <strong>{run.startedAt ? 'Checked ' + new Date(run.startedAt).toLocaleString() : 'See heartbeat details'}</strong>
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        ))}
+      </div>
       <div className="grove-review-section" aria-label="Grove Builder review queue">
         <div className="grove-review-title">
           <span>CODE REVIEW QUEUE</span>
@@ -121,7 +154,7 @@ export default function GroveWorkerPanel() {
       </div>
       <div className="grove-worker-foot">
         <span>READ-ONLY TELEMETRY</span>
-        <span>{refreshing ? 'SYNCING…' : 'CHECKS EVERY 4 MIN'}</span>
+        <span>{refreshing ? 'SYNCING…' : 'CHECKS EVERY 6 MIN'}</span>
       </div>
     </section>
   );
