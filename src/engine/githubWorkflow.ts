@@ -3,6 +3,7 @@
  */
 export const GROVE_REPO_URL = 'https://github.com/Link9060/Resonant-Grove';
 export const GROVE_ACTIONS_URL = GROVE_REPO_URL + '/actions/workflows/array-builder.yml';
+export const SUPERVISOR_ACTIONS_URL = GROVE_REPO_URL + '/actions/workflows/array-supervisor.yml';
 const API_URL = 'https://api.github.com/repos/Link9060/Resonant-Grove/actions/workflows/array-builder.yml/runs?per_page=6';
 
 export type WorkerRun = {
@@ -128,4 +129,17 @@ export async function fetchGroveReviewQueue(signal?: AbortSignal): Promise<Grove
     tasks: Array.isArray(issues) ? issues.map(parseTaskIssue).filter((task): task is ArrayTask => task !== null).slice(0, 8) : [],
     reviews: Array.isArray(prs) ? prs.map(parseReviewPr).filter((pr): pr is ReviewPr => pr !== null).slice(0, 8) : [],
   };
+}
+
+/** Separate public heartbeat feed. This does not run GPT or grant repository writes. */
+const SUPERVISOR_API = 'https://api.github.com/repos/Link9060/Resonant-Grove/actions/workflows/array-supervisor.yml/runs?per_page=4';
+
+export async function fetchSupervisorRuns(signal?: AbortSignal): Promise<WorkerRunsSnapshot> {
+  const response = await fetch(SUPERVISOR_API, {
+    headers: { Accept: 'application/vnd.github+json' },
+    credentials: 'omit', signal,
+  });
+  if (response.status === 404) return { configured: false, runs: [] };
+  if (!response.ok) throw new Error('ARRAY supervisor feed unavailable (HTTP ' + response.status + ').');
+  return { configured: true, runs: parseWorkerRunsPayload(await response.json()) };
 }
