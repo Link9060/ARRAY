@@ -144,7 +144,7 @@ export default function GroveWorkerPanel() {
             <div className="grove-review-title"><span>OPEN ARRAY REQUESTS</span><span>GITHUB ISSUES</span></div>
             {queue.tasks.slice(0, 5).map(task => (
               <a key={'issue-' + task.number} className="grove-review-entry" href={task.url} target="_blank" rel="noopener noreferrer">
-                <span className="grove-review-label">ISSUE #{task.number} <span>{task.mode.toUpperCase()}</span></span>
+                <span className="grove-review-label">ISSUE #{task.number} <span>{task.mode.toUpperCase()}{task.phase ? ' / ' + task.phase.replace('-', ' ').toUpperCase() : ''}</span></span>
                 <strong>{task.title}</strong>
                 <ExternalLink size={12} aria-hidden="true" />
               </a>
