@@ -13,6 +13,7 @@ import {
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
+import { completeGoogleSignIn, googleSignInAvailable, startGoogleSignIn } from './engine/googleAuth';
 
 type View = 'array' | 'monitor';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
@@ -331,6 +332,36 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [liveError, setLiveError] = useState('');
 
+  // Restore only an ARRAY-initiated Google OAuth redirect. No tokens are
+  // persisted beyond this page session, matching email/password sign-in.
+  useEffect(() => {
+    let canceled = false;
+    void completeGoogleSignIn().then(async signedIn => {
+      if (!signedIn || canceled) return;
+      try {
+        await listLiveMissions(); // Verify the RAVIN backend accepts the token.
+        if (canceled) return;
+        setLiveConnected(true);
+        setLiveMode(true);
+        setLoginOpen(false);
+        setLoginPassword('');
+        setPolicy(previous => previous === 'authorized' ? 'review' : previous);
+        setNotice('Google account connected to RAVIN. Text-only missions available.');
+      } catch (error) {
+        signOutLive();
+        if (canceled) return;
+        setLoginOpen(true);
+        setLoginError(error instanceof Error ? error.message : 'RAVIN did not accept the Google session.');
+      }
+    }).catch(error => {
+      signOutLive();
+      if (canceled) return;
+      setLoginOpen(true);
+      setLoginError(error instanceof Error ? error.message : 'Google sign-in failed.');
+    });
+    return () => { canceled = true; };
+  }, []);
+
   const selectedAgent = AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0];
   const activeCount = missions.filter((mission) => isActiveMission(mission.phase)).length;
   const recentCount = missions.filter((mission) => mission.phase === 'succeeded').length;
@@ -436,6 +467,17 @@ export default function App() {
       setLoginError(error instanceof Error ? error.message : 'Could not connect to RAVIN.');
     } finally { setLoginBusy(false); }
   }
+  async function submitGoogleLogin() {
+    setLoginBusy(true);
+    setLoginError('');
+    try {
+      await startGoogleSignIn(); // Browser redirects to Google.
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : 'Could not open Google sign-in.');
+      setLoginBusy(false);
+    }
+  }
+
   function disconnectLive() {
     signOutLive();
     setLiveConnected(false); setLiveMode(false);
@@ -516,7 +558,13 @@ export default function App() {
       {loginOpen && <div className="live-login-backdrop" role="presentation" onClick={(event) => { if(event.target===event.currentTarget && !loginBusy)setLoginOpen(false); }}>
         <form className="live-login" onSubmit={(event) => {void submitLogin(event);}} aria-label="Connect live RAVIN">
           <div className="live-login-head"><div><span className="eyebrow">ARRAY / CONNECT</span><h2>Connect RAVIN<span className="title-period">.</span></h2></div><button type="button" onClick={() => setLoginOpen(false)} aria-label="Close" disabled={loginBusy}><X size={18}/></button></div>
-          <p>Use your existing RAVIN account to enable authenticated, text-only AI missions. Passwords are sent only to RAVIN's existing authentication service, and session tokens are held in memory.</p>
+          <p>Connect your existing RAVIN account to enable authenticated, text-only missions. Sign in with Google or your email and password. Session tokens are kept in memory only.</p>
+          <button type="button" className="live-google-button" onClick={() => { void submitGoogleLogin(); }} disabled={loginBusy || !googleSignInAvailable() || !liveApiConfigured()}>
+            <span className="google-mark" aria-hidden="true">G</span>
+            <span>{loginBusy ? 'CONNECTING...' : 'CONTINUE WITH GOOGLE'}</span>
+          </button>
+          {!googleSignInAvailable() && <small className="google-setup-hint">Google sign-in needs a public Supabase key configured at build time and HTTPS.</small>}
+          <div className="live-login-divider" aria-hidden="true"><span>OR USE EMAIL</span></div>
           <label htmlFor="live-email">RAVIN ACCOUNT EMAIL</label>
           <input id="live-email" type="email" autoComplete="username" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)}/>
           <label htmlFor="live-password">PASSWORD</label>
