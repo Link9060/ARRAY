@@ -29,6 +29,8 @@ jobs:
       - name: Install project dependencies
         run: npm install --no-audit --no-fund
       - name: Verify TypeScript and build
+        env:
+          VITE_RAVIN_SUPABASE_PUBLISHABLE_KEY: ${{ vars.RAVIN_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Run tests
         run: npm run test
