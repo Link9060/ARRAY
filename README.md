@@ -3,7 +3,7 @@
 
 **Project:** ARROW / RAVIN ARRAY  
 **Repository:** `Link9060/ARRAY`  
-**Status:** v0.1 interface prototype (the live execution service is not connected yet)  
+**Status:** Prototype UI with authenticated RAVIN text-only mission API adapter and optional Supabase mission-history persistence (see [SUPABASE.md](SUPABASE.md))  
 **Canonical product name:** RAVIN ARRAY (UI may display `RAVIN / ARRAY`)  
 **Last product spec update:** 2026-10-15
 
@@ -111,7 +111,9 @@ npm run preview
 Local development expects Node 20.19+ or 22.12+ for current Vite releases.
 
 ### Integration boundary
-The React page must not directly call arbitrary third-party model APIs from the browser. RAVIN Core / agent backend should eventually provide an authenticated mission API. Proposed endpoints **not yet implemented**:
+The React page must not directly call arbitrary third-party model APIs from the browser.
+
+**Current implementation:** `src/engine/liveClient.ts` authenticates with the RAVIN Supabase Edge Function and calls the separate RAVIN worker API for actual text-only missions. `src/engine/arrayCloud.ts` stores and restores owner-scoped last-known mission snapshots in Supabase; cached rows do not run workers. Historical API examples below are product design references. Google OAuth is not enabled by this persistence integration. RAVIN Core / agent backend should eventually provide an authenticated mission API. Proposed endpoints **not yet implemented**:
 
 ```text
 GET    /api/array/agents
