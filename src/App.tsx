@@ -377,7 +377,7 @@ export default function App() {
         const remote = await listLiveMissions();
         if (stale) return;
         setMissions(previous => {
-          const all = [...remote, ...previous];
+          const all = [...previous, ...remote];
           return [...new Map(all.map(m => [m.id, m])).values()]
             .sort((a,b) => b.createdAt - a.createdAt).slice(0,50);
         });
@@ -464,7 +464,7 @@ export default function App() {
         setLiveError(error instanceof Error ? error.message : 'RAVIN worker server is offline.');
       }
       setMissions(previous => {
-        const all = [...remote, ...saved, ...previous.filter(m => m.isDemo)];
+        const all = [...saved, ...previous.filter(m => m.isDemo), ...remote];
         return [...new Map(all.map(m => [m.id, m])).values()]
           .sort((a,b) => b.createdAt - a.createdAt).slice(0,50);
       });
