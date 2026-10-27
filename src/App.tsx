@@ -113,12 +113,12 @@ function ArrayCanvas({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="array-canvas">
+    <div className="array-canvas array-canvas--dual">
       <div className="canvas-coordinates top-left">00.00° N / SYSTEM 01</div>
       <div className="canvas-coordinates top-right">RAVIN CORE LINK : READY</div>
       <div className="canvas-crosshair horizontal" aria-hidden="true" />
       <div className="canvas-crosshair vertical" aria-hidden="true" />
-      <div className="formation-grid">
+      <div className="formation-grid formation-grid--dual">
         {CATEGORIES.map((category) => (
           <Formation
             key={category.id}
