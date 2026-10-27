@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { evolveSmoke, SMOKE_EMIT_INTERVAL_MS, type SmokeSeed } from '../engine/smokeTrail';
 import {
   siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, SILO_SEQUENCE_MS,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y,
@@ -138,6 +139,91 @@ function createFlareTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+
+function paintedTexture(draw: (ctx:CanvasRenderingContext2D)=>void, width=512, height=512): THREE.CanvasTexture {
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d');
+  if(!ctx) throw new Error('2D canvas unavailable');
+  draw(ctx);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+function createGroundTexture(): THREE.CanvasTexture {
+  const texture=paintedTexture(ctx=>{
+    ctx.fillStyle='#44483c';ctx.fillRect(0,0,512,512);
+    let seed=29583;
+    const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
+    for(let i=0;i<23000;i++){
+      const v=Math.floor(38+rnd()*84);
+      ctx.fillStyle=`rgba(${v},${v+3},${Math.max(0,v-7)},${.08+rnd()*.32})`;
+      const x=rnd()*512,y=rnd()*512,k=.5+rnd()*4;
+      ctx.fillRect(x,y,k,k*.5);
+    }
+    for(let i=0;i<65;i++){
+      let x=rnd()*512,y=rnd()*512;
+      ctx.beginPath();ctx.moveTo(x,y);
+      for(let j=0;j<5;j++){x+=(rnd()-.5)*35;y+=rnd()*13;ctx.lineTo(x,y)}
+      ctx.strokeStyle='rgba(12,18,15,.13)';ctx.lineWidth=.4+rnd();ctx.stroke();
+    }
+    for(let i=0;i<45;i++){
+      const x=rnd()*512,y=rnd()*512;
+      ctx.fillStyle='rgba(75,82,62,.20)';ctx.beginPath();ctx.ellipse(x,y,3+rnd()*15,2+rnd()*8,0,0,Math.PI*2);ctx.fill();
+    }
+  });
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(5,5);
+  return texture;
+}
+function createSmokeTexture(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    const gr=ctx.createRadialGradient(128,128,11,128,128,126);
+    gr.addColorStop(0,'rgba(215,221,216,.48)');
+    gr.addColorStop(.35,'rgba(169,176,170,.31)');
+    gr.addColorStop(.7,'rgba(120,133,130,.13)');
+    gr.addColorStop(1,'rgba(94,106,102,0)');
+    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
+  },256,256);
+}
+function createMoonGlowTexture(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    const gr=ctx.createRadialGradient(128,128,12,128,128,127);
+    gr.addColorStop(0,'rgba(218,230,222,.37)');
+    gr.addColorStop(.18,'rgba(173,193,185,.20)');
+    gr.addColorStop(.55,'rgba(137,170,174,.07)');
+    gr.addColorStop(1,'rgba(90,125,137,0)');
+    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
+  },256,256);
+}
+function createSquareWarning(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    ctx.fillStyle='#e2b946';ctx.fillRect(0,0,512,512);
+    ctx.strokeStyle='#191914';ctx.lineWidth=20;ctx.strokeRect(22,22,468,468);
+    ctx.textAlign='center';ctx.fillStyle='#191914';
+    ctx.font='bold 69px monospace';ctx.fillText('WARNING',256,138);
+    ctx.fillRect(49,174,414,10);
+    ctx.font='bold 39px monospace';ctx.fillText('RESTRICTED',256,252);
+    ctx.fillText('CAMERA AREA',256,308);
+    ctx.font='24px monospace';ctx.fillText('SIMULATED LOCATION',256,406);
+    ctx.fillText('NO LIVE EQUIPMENT',256,450);
+  });
+}
+function createTriangleSymbol(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    ctx.clearRect(0,0,512,512);
+    ctx.fillStyle='#e2b946';ctx.strokeStyle='#10120d';ctx.lineWidth=19;
+    ctx.beginPath();ctx.moveTo(256,40);ctx.lineTo(484,449);ctx.lineTo(28,449);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.translate(256,306);
+    ctx.fillStyle='#10120d';
+    for(let i=0;i<3;i++){
+      ctx.save();ctx.rotate(-Math.PI/2+i*2*Math.PI/3);
+      ctx.beginPath();ctx.arc(0,0,119,-.49,.49);
+      ctx.arc(0,0,41,.49,-.49,true);ctx.closePath();ctx.fill();ctx.restore();
+    }
+    ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.fill();
+  });
 }
 
 export default function LaunchSilo3D({ launchSignal }: Props) {
