@@ -95,33 +95,6 @@ function createSteelTexture(): THREE.CanvasTexture {
 
 
 /** Legible, high-contrast fictional location placard for the camera feed. */
-function createWarningPlacard(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas 2D is unavailable.');
-  ctx.fillStyle = '#d3b45d';
-  ctx.fillRect(0,0,512,256);
-  ctx.fillStyle = '#161810';
-  ctx.fillRect(14,14,484,228);
-  ctx.fillStyle = '#d9be74';
-  ctx.fillRect(25,25,462,66);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#1a1b14';
-  ctx.font = 'bold 51px monospace';
-  ctx.fillText('CAUTION',256,77);
-  ctx.fillStyle = '#e9dfb7';
-  ctx.font = 'bold 33px monospace';
-  ctx.fillText('SIMULATED SITE',256,149);
-  ctx.font = '24px monospace';
-  ctx.fillText('CAMERA SET DRESSING',256,198);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-/** Camera-facing luminous plume texture, so it reads at small viewport sizes. */
 function createFlareTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -752,6 +725,24 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     particles.material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0,1,0),-SILO_DECK_Y)];
     scene.add(particles);
 
+    // Smoke is owned by the scene, never by the 6.8-second launch timeline.
+    // Each puff has a birth timestamp and can linger for another 12 seconds.
+    const smokeTexture=createSmokeTexture();
+    const smokeSlotCount=lowDetail?28:72;
+    type SmokeSlot={sprite:THREE.Sprite;seed:SmokeSeed|null};
+    const smokeSlots:SmokeSlot[]=Array.from({length:smokeSlotCount},()=>{
+      const mat=new THREE.SpriteMaterial({
+        map:smokeTexture,color:0xd4ded5,transparent:true,opacity:0,
+        depthWrite:false,depthTest:true,
+      });
+      const sprite=new THREE.Sprite(mat);
+      sprite.visible=false;
+      scene.add(sprite);
+      return {sprite,seed:null};
+    });
+    let smokeCursor=0;
+    let smokeLastSpawn=-Infinity;
+
     function resize() {
       const width = Math.max(1, host!.clientWidth);
       const height = Math.max(1, host!.clientHeight);
@@ -808,6 +799,29 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       warmBurst.intensity = plumeVisible ? 6.4 * cinematicFlare : 0;
       warmBurst.position.set(0, Math.max(.5,emissionY), 0);
       lowerBayLight.intensity = 2.1 + (plumeVisible ? 3.7 * cinematicFlare : 0);
+      // Emit only while the prop is visible and clear of the floor.
+      // Previously born smoke continues to age, drift, and dissipate in standby.
+      if (!reduced && plumeVisible && timestamp-smokeLastSpawn>=SMOKE_EMIT_INTERVAL_MS) {
+        const slot=smokeSlots[smokeCursor++%smokeSlots.length];
+        slot.seed={
+          bornAt:timestamp,
+          x:Math.sin(timestamp*.0021)*.12,
+          y:emissionY+.30,
+          z:Math.cos(timestamp*.0017)*.11,
+          size:.46+(smokeCursor%5)*.07,
+          phase:smokeCursor*2.39996,
+        };
+        smokeLastSpawn=timestamp;
+      }
+      for(const slot of smokeSlots) {
+        if(!slot.seed||reduced){slot.sprite.visible=false;continue;}
+        const smoke=evolveSmoke(slot.seed,timestamp);
+        slot.sprite.visible=smoke.alive && smoke.alpha>.004;
+        if(!smoke.alive){slot.seed=null;continue;}
+        slot.sprite.position.set(smoke.x,smoke.y,smoke.z);
+        slot.sprite.scale.set(smoke.size,smoke.size*.9,1);
+        (slot.sprite.material as THREE.SpriteMaterial).opacity=smoke.alpha;
+      }
       exhaustMaterial.opacity = cinematicFlare * .92;
       flameCoreMaterial.opacity = cinematicFlare * .98;
       flameHaloMaterial.opacity = cinematicFlare * .38;
@@ -862,7 +876,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       reducedQuery.removeEventListener('change', onReduced);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       scene.traverse(object => {
-        if (!(object instanceof THREE.Mesh || object instanceof THREE.Points)) return;
+        if(object instanceof THREE.Sprite){
+          object.material.dispose();
+          return;
+        }
+        if (!(object instanceof THREE.Mesh || object instanceof THREE.Points ||
+              object instanceof THREE.Line)) return;
         object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) material.dispose();
@@ -871,7 +890,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hazardTexture.dispose();
       stencilTexture.dispose();
       steelTexture.dispose();
-      warningTexture.dispose();
+      moonGlowTexture.dispose();
+      moonSurface.dispose();
+      groundTexture.dispose();
+      triangleTexture.dispose();
+      squareTexture.dispose();
+      smokeTexture.dispose();
       flareTexture.dispose();
       flareMaterial.dispose();
       renderer.dispose();
