@@ -58,3 +58,17 @@ export function siloModelVisible(pose: SiloPose): boolean {
     && pose.ascent > 0
     && siloModelY(pose) + SILO_MODEL_SCALE_Y * SILO_MODEL_TIP_Y > SILO_DECK_Y;
 }
+
+/** A restrained camera nod that returns smoothly to its idle framing. */
+export function siloCameraLift(elapsedMs: number | null, reducedMotion = false): number {
+  if (elapsedMs === null || reducedMotion) return 0;
+  const t = clamp(elapsedMs / SILO_SEQUENCE_MS);
+  return smooth((t - .29) / .25) * (1 - smooth((t - .61) / .32));
+}
+
+/** A purely illustrative departure, ensuring the prop clears the frame before reset. */
+export function siloExitOffset(elapsedMs: number | null, reducedMotion = false): number {
+  if (elapsedMs === null || reducedMotion) return 0;
+  const t = clamp(elapsedMs / SILO_SEQUENCE_MS);
+  return 9 * smooth((t - .63) / .19);
+}
