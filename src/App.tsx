@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
-  Activity, ArrowDownRight, ArrowLeft, ArrowUpRight, Check, ChevronRight,
+  ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
   Radar, Radio, ShieldCheck, Sparkles, X, Play, Wifi, LogIn, LogOut, WifiOff,
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 import { missionEvents, missionStatus } from './engine/missionEvents';
 import LaunchSilo3D from './components/LaunchSilo3D';
+import DeploymentConsole from './components/DeploymentConsole';
 import { SILO_SEQUENCE_MS } from './engine/siloAnimation';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
@@ -85,81 +86,40 @@ function Formation({
   );
 }
 
-function CoreNode() {
-  return (
-    <a
-      className="core-shortcut"
-      href={CHAT_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Open RAVIN Core chat in a new tab"
-      title="Open main RAVIN chat"
-    >
-      <span className="core-outer" aria-hidden="true" />
-      <span className="core-middle" aria-hidden="true" />
-      <span className="core-inner" aria-hidden="true">
-        <Sparkles size={28} strokeWidth={1.4} />
-      </span>
-      <span className="core-orbit-dot" aria-hidden="true" />
-      <span className="core-title">RAVIN</span>
-      <span className="core-subtitle">CORE / CHAT <ArrowUpRight size={11} /></span>
-    </a>
-  );
-}
-
 function ArrayCanvas({
-  selectedAgentId, launchedAgentId, missions, onSelect, launchSignal, launchPlaying, onPreview,
+  launchSignal, launchPlaying, onPreview,
 }: {
-  selectedAgentId: string;
-  launchedAgentId: string | null;
-  missions: Mission[];
-  onSelect: (id: string) => void;
   launchSignal: number;
   launchPlaying: boolean;
   onPreview: () => void;
 }) {
   return (
-    <div className="array-canvas array-canvas--dual">
-      <div className="canvas-coordinates top-left">SECTOR 06 / ARRAY CONTROL</div>
-      <div className="canvas-coordinates top-right">SOFTWARE LINK / CONTROL CHANNEL</div>
-      <div className="canvas-crosshair horizontal" aria-hidden="true" />
-      <div className="canvas-crosshair vertical" aria-hidden="true" />
-      <div className="silo-stage" aria-label="Fictional military-industrial 3D launch-bay illustration">
-        <div className="silo-stage-topline"><span>VAULT 06 // DISPLAY UNIT</span><span>☢ RADIOLOGICAL SYMBOL</span></div>
+    <div className="array-canvas array-canvas--dual station-camera-viewport">
+      <div className="camera-overlay camera-overlay-top" aria-hidden="true"><span><span className="camera-record-dot"/>CAM 06 / NIGHT OBSERVATION</span><span>REC • SIMULATION</span></div>
+      <div className="camera-crosshair" aria-hidden="true" />
+      <div className="silo-stage" aria-label="Fictional outdoor nighttime industrial camera feed">
+        <div className="silo-stage-topline"><span>ARRAY FACILITY / REMOTE CAM</span><span>FICTIONAL DISPLAY</span></div>
         <LaunchSilo3D launchSignal={launchSignal} />
         <div className="silo-stage-bottomline">
           <span className={launchPlaying ? 'silo-stage-state active' : 'silo-stage-state'}>
             <span className="silo-stage-light" />
-            {launchPlaying ? 'ILLUSTRATIVE SEQUENCE' : 'INSPECTION / STANDBY'}
+            {launchPlaying ? 'ILLUSTRATIVE DEPLOYMENT' : 'CAMERA / STANDBY'}
           </span>
-          <button type="button" className="silo-stage-preview" onClick={onPreview} aria-label="Preview a 3D launch animation without starting a mission">
-            <Play size={11} /> PLAY SEQUENCE
+          <button type="button" className="silo-stage-preview" onClick={onPreview} aria-label="Play a camera-feed demo without starting an AI task">
+            <Play size={11} /> CAMERA TEST
           </button>
         </div>
       </div>
-      <div className="formation-grid formation-grid--dual">
-        {CATEGORIES.map((category) => (
-          <Formation
-            key={category.id}
-            category={category}
-            agents={getAgentsForCategory(category.id)}
-            selectedAgentId={selectedAgentId}
-            launchedAgentId={launchedAgentId}
-            missions={missions}
-            onSelect={onSelect}
-          />
-        ))}
+      <div className="camera-overlay camera-overlay-bottom" aria-hidden="true">
+        <span>REMOTE CAMERA // SCENE NOT LIVE</span><span>SOFTWARE MISSIONS ONLY</span>
       </div>
-      <CoreNode />
-      <div className="canvas-coordinates bottom-left">12 AGENTS / 02 ARRAYS</div>
-      <div className="canvas-coordinates bottom-right">SELECT SOFTWARE WORKER <ArrowDownRight size={12} /></div>
     </div>
   );
 }
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode, instructions, setInstructions,
+  onSelectCategory, liveMode, operationsMode, setOperationsMode, instructions, setInstructions,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -168,9 +128,6 @@ function CommandDeck({
   policy: ExecutionPolicy;
   setPolicy: (value: ExecutionPolicy) => void;
   onSelectCategory: (category: AgentCategory) => void;
-  onLaunch: () => void;
-  launchedAgentId: string | null;
-  launchPending: boolean;
   liveMode: boolean;
   operationsMode: OperationsMode;
   setOperationsMode: (value: OperationsMode) => void;
@@ -261,15 +218,7 @@ function CommandDeck({
           <p className="policy-permission"><ShieldCheck size={13}/> {liveMode
             ? 'SERVER ENFORCED · No external actions available'
             : 'DEMO ONLY · No model execution or external actions'}</p>
-          <button
-            className="launch-button"
-            type="button"
-            disabled={!objective.trim() || Boolean(launchedAgentId) || launchPending}
-            onClick={onLaunch}
-          >
-            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'DISPATCH TASK' : 'START DEMO TASK'}</span>
-            {launchedAgentId ? <Activity size={18} /> : <ArrowUpRight size={20} />}
-          </button>
+          <p className="station-deck-nextstep">NEXT → COMPLETE THE SOFTWARE DISPATCH CHECKS ON THE RIGHT.</p>
         </div>
       </div>
       <div className="deck-footer"><span><span className="demo-marker" /> {liveMode ? 'AUTHENTICATED RAVIN / TEXT ONLY' : 'SIMULATED MISSION ENGINE'}</span><span>RAVIN ARRAY / BUILD 0.2.0</span></div>
@@ -652,8 +601,31 @@ export default function App() {
         {view === 'array' ? (
           <>
             <div className="canvas-labels"><span><Compass size={14} /> SOFTWARE DEPLOYMENT ARRAY</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
-            <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
+            <div className="array-station">
+              <aside className="array-station-left" aria-label="Software worker selection and instructions">
+                <div className="station-left-head">
+                  <div><span className="eyebrow">WORKSTATION 01</span><strong>AGENT CONFIGURATION</strong></div>
+                  <a href={CHAT_URL} target="_blank" rel="noopener noreferrer"><Sparkles size={14}/> RAVIN CORE <ArrowUpRight size={12}/></a>
+                </div>
+                <div className="station-agent-selector">
+                  {CATEGORIES.map(category => <Formation
+                    key={category.id} category={category} agents={getAgentsForCategory(category.id)}
+                    selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId}
+                    missions={missions} onSelect={setSelectedAgentId}
+                  />)}
+                </div>
+                <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory}
+                  objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy}
+                  onSelectCategory={selectCategory} liveMode={liveMode} operationsMode={operationsMode}
+                  setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
+              </aside>
+              <div className="array-station-right">
+                <ArrayCanvas launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
+                <DeploymentConsole selectedAgent={selectedAgent.name} objectiveReady={Boolean(objective.trim())}
+                  launchSignal={launchSignal} launchPlaying={launchPlaying} launchPending={launchPending}
+                  liveMode={liveMode} onPreview={previewSilo} onDispatch={() => {void launch();}} />
+              </div>
+            </div>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
