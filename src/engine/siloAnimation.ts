@@ -72,3 +72,10 @@ export function siloExitOffset(elapsedMs: number | null, reducedMotion = false):
   const t = clamp(elapsedMs / SILO_SEQUENCE_MS);
   return 9 * smooth((t - .79) / .13);
 }
+
+/** UI alert lighting only. It has no relation to actual hardware state. */
+export function siloVisualAlert(elapsedMs: number | null): boolean {
+  if (elapsedMs === null) return false;
+  const pose = siloPose(elapsedMs);
+  return elapsedMs < SILO_SEQUENCE_MS && (pose.hatch > .04 || pose.thrust > .02);
+}
