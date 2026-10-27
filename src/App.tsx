@@ -183,7 +183,7 @@ function CommandDeck({
           <label className="eyebrow" htmlFor="mission-objective">03 / MISSION OBJECTIVE</label>
           <textarea
             id="mission-objective"
-            placeholder="Give your agent an objective...\nWhat should it accomplish?"
+            placeholder={"Give your agent an objective...\nWhat should it accomplish?"}
             value={objective}
             onChange={(event) => setObjective(event.target.value)}
             maxLength={1200}
