@@ -11,11 +11,17 @@
 
 ## 1. What we are building
 
-RAVIN ARRAY transforms AI agent management into a cinematic, precise, navigable *launch array*. Instead of a conventional list of chatbots, users interact with two visual formations of six interchangeable worker nodes positioned around a large central RAVIN Core node. They configure a mission from a grounded command panel at the bottom of the screen, deploy a selected agent with a restrained abstract launch animation, and switch to a **Flight Monitor** showing symbolic trajectories, real execution events (once a backend is attached), and results.
+RAVIN ARRAY transforms AI agent management into a cinematic, precise, navigable *launch array*. Instead of a conventional list of chatbots, users interact with two visual formations of six interchangeable worker nodes positioned around a large central RAVIN Core node. They configure a mission from a grounded command panel at the bottom of the screen, deploy a selected agent with a decorative military-industrial Three.js animation, and switch to a **Flight Monitor** showing symbolic trajectories, real execution events (once a backend is attached), and results.
 
-The missile-silo / flight-path idea is a **visual metaphor for deploying software workers**, not a weapons system. Keep everything abstract and suitable for an everyday productivity application. There is no physical targeting, armament, or real-world missile functionality.
+The cold-war-inspired missile exhibit, radiation trefoil and silo opening animation are **fictional visual metaphors for deploying software workers**, not a weapons system. Keep the presentation fictional and suitable for an everyday productivity application, with no operational weapon details. There is no physical targeting, armament, or real-world missile functionality.
 
 **North star:** Make deploying a useful AI agent feel as deliberate and satisfying as operating a premium spacecraft interface, while remaining immediately understandable and accessible.
+
+### Military-industrial visual direction
+- Matte black and graphite hardware, worn olive-metal interface panels, restrained amber warning accents, compact stencil and monospace typography.
+- A fictional decorative nuclear-era missile silhouette with nonfunctional hazard trefoil markings is shown as a Three.js model in the central inspection bay.
+- The graphic is aesthetic only: no physical construction, targeting, control channels or real-world missile launch systems.
+- Preserve accessible interactive tasks and honest separation between simulation and authenticated software missions.
 
 ### Product principles
 1. **Clarity over spectacle:** every animation must explain state, not obscure it.
