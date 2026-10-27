@@ -11,6 +11,8 @@ import {
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
+import LaunchSilo3D from './components/LaunchSilo3D';
+import { SILO_SEQUENCE_MS } from './engine/siloAnimation';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
 import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
@@ -105,12 +107,15 @@ function CoreNode() {
 }
 
 function ArrayCanvas({
-  selectedAgentId, launchedAgentId, missions, onSelect,
+  selectedAgentId, launchedAgentId, missions, onSelect, launchSignal, launchPlaying, onPreview,
 }: {
   selectedAgentId: string;
   launchedAgentId: string | null;
   missions: Mission[];
   onSelect: (id: string) => void;
+  launchSignal: number;
+  launchPlaying: boolean;
+  onPreview: () => void;
 }) {
   return (
     <div className="array-canvas array-canvas--dual">
@@ -118,6 +123,19 @@ function ArrayCanvas({
       <div className="canvas-coordinates top-right">RAVIN CORE LINK : READY</div>
       <div className="canvas-crosshair horizontal" aria-hidden="true" />
       <div className="canvas-crosshair vertical" aria-hidden="true" />
+      <div className="silo-stage" aria-label="Illustrative 3D launch bay">
+        <div className="silo-stage-topline"><span>RAVIN / SIGNAL BAY</span><span>3D / LIVE RENDER</span></div>
+        <LaunchSilo3D launchSignal={launchSignal} />
+        <div className="silo-stage-bottomline">
+          <span className={launchPlaying ? 'silo-stage-state active' : 'silo-stage-state'}>
+            <span className="silo-stage-light" />
+            {launchPlaying ? 'VISUAL SEQUENCE' : 'HATCHES SECURED'}
+          </span>
+          <button type="button" className="silo-stage-preview" onClick={onPreview} aria-label="Preview a 3D launch animation without starting a mission">
+            <Play size={11} /> PREVIEW
+          </button>
+        </div>
+      </div>
       <div className="formation-grid formation-grid--dual">
         {CATEGORIES.map((category) => (
           <Formation
@@ -343,6 +361,8 @@ export default function App() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
+  const [launchSignal, setLaunchSignal] = useState(0);
+  const [launchPlaying, setLaunchPlaying] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState('');
   const [liveMode, setLiveMode] = useState(false);
@@ -379,10 +399,21 @@ export default function App() {
   }, [view, activeCount]);
 
   useEffect(() => {
-    if (!launchedAgentId || liveMode) return;
-    const timer = window.setTimeout(() => { setLaunchedAgentId(null); setView('monitor'); }, 1800);
+    if (!launchedAgentId) return;
+    const timer = window.setTimeout(() => { setLaunchedAgentId(null); setView('monitor'); }, SILO_SEQUENCE_MS + 260);
     return () => window.clearTimeout(timer);
-  }, [launchedAgentId, liveMode]);
+  }, [launchedAgentId]);
+
+  useEffect(() => {
+    if (!launchPlaying) return;
+    const timer = window.setTimeout(() => setLaunchPlaying(false), SILO_SEQUENCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [launchPlaying, launchSignal]);
+
+  function previewSilo() {
+    setLaunchSignal(previous => previous + 1);
+    setLaunchPlaying(true);
+  }
 
   useEffect(() => {
     if (!notice) return;
@@ -439,12 +470,11 @@ export default function App() {
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
         setObjective('');
-        setNotice(`${selectedAgent.name} submitted to live RAVIN using ${mission.model || 'server-selected model'}. Text-only mission queued.`);
-        setView('monitor');
+        setNotice(`${selectedAgent.name} submitted to live RAVIN using ${mission.model || 'server-selected model'}. Symbolic launch playing.`);
+        previewSilo();
       } catch(error) {
-        setNotice(error instanceof Error ? error.message : 'Live launch failed.');
-      } finally {
         setLaunchedAgentId(null);
+        setNotice(error instanceof Error ? error.message : 'Live launch failed.');
       }
       return;
     }
@@ -461,6 +491,7 @@ export default function App() {
     if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
     setSelectedMissionId(mission.id);
     setLaunchedAgentId(selectedAgent.id);
+    previewSilo();
     setObjective('');
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
@@ -577,7 +608,7 @@ export default function App() {
         {view === 'array' ? (
           <>
             <div className="canvas-labels"><span><Compass size={14} /> THE DEPLOYMENT FIELD</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
-            <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} />
+            <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
             <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
