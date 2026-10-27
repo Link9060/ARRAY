@@ -1,7 +1,7 @@
 /** Timeline for ARRAY's fictional signal-pod launch visualization.
  * This animation is purely illustrative and never reflects provider progress.
  */
-export const SILO_SEQUENCE_MS = 5600;
+export const SILO_SEQUENCE_MS = 6800;
 
 // Pure visual geometry constraints. The complete elongated model starts below the sealed deck.
 export const SILO_DECK_Y = 0.21;
@@ -34,10 +34,10 @@ export function siloPose(elapsedMs: number | null, reducedMotion = false): SiloP
   const t = Math.max(0, elapsedMs) / SILO_SEQUENCE_MS;
   if (t >= 1) return { hatch: 0, thrust: 0, ascent: 0, glow: 0.23, shake: 0 };
   const hatchOpen = smooth((t - .06) / .19);
-  const hatchClose = smooth((t - .82) / .16);
+  const hatchClose = smooth((t - .90) / .09);
   // The missile must be below the deck until the doors finish opening.
-  const ascent = smooth((t - .29) / .52);
-  const thrust = smooth((t - .31) / .13) * (1 - smooth((t - .79) / .10));
+  const ascent = smooth((t - .29) / .59);
+  const thrust = smooth((t - .31) / .12) * (1 - smooth((t - .86) / .09));
   return {
     hatch: hatchOpen * (1 - hatchClose),
     thrust,
@@ -70,5 +70,5 @@ export function siloCameraLift(elapsedMs: number | null, reducedMotion = false):
 export function siloExitOffset(elapsedMs: number | null, reducedMotion = false): number {
   if (elapsedMs === null || reducedMotion) return 0;
   const t = clamp(elapsedMs / SILO_SEQUENCE_MS);
-  return 9 * smooth((t - .63) / .19);
+  return 9 * smooth((t - .79) / .13);
 }
