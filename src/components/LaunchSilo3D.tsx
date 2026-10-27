@@ -92,6 +92,54 @@ function createSteelTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+
+/** Legible, high-contrast fictional location placard for the camera feed. */
+function createWarningPlacard(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable.');
+  ctx.fillStyle = '#d3b45d';
+  ctx.fillRect(0,0,512,256);
+  ctx.fillStyle = '#161810';
+  ctx.fillRect(14,14,484,228);
+  ctx.fillStyle = '#d9be74';
+  ctx.fillRect(25,25,462,66);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#1a1b14';
+  ctx.font = 'bold 51px monospace';
+  ctx.fillText('CAUTION',256,77);
+  ctx.fillStyle = '#e9dfb7';
+  ctx.font = 'bold 33px monospace';
+  ctx.fillText('SIMULATED SITE',256,149);
+  ctx.font = '24px monospace';
+  ctx.fillText('CAMERA SET DRESSING',256,198);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** Camera-facing luminous plume texture, so it reads at small viewport sizes. */
+function createFlareTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable.');
+  const grad = ctx.createRadialGradient(64,32,8,64,115,147);
+  grad.addColorStop(0,'rgba(255,255,235,.96)');
+  grad.addColorStop(.13,'rgba(255,222,124,.95)');
+  grad.addColorStop(.33,'rgba(255,142,45,.8)');
+  grad.addColorStop(.62,'rgba(237,63,12,.32)');
+  grad.addColorStop(1,'rgba(255,30,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,128,256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export default function LaunchSilo3D({ launchSignal }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<number | null>(null);
@@ -153,19 +201,33 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({
       color:0xb9c9c5,size:.075,sizeAttenuation:true,opacity:.54,transparent:true,
     })));
-    const darkTree = new THREE.MeshStandardMaterial({color:0x0d1c17,roughness:1});
-    const distantTree = new THREE.MeshStandardMaterial({color:0x142721,roughness:1});
-    for (let i=0;i<48;i++) {
-      const angle=i*2.399963;
-      const radius=11+(i%5)*2.2;
-      const x=Math.sin(angle)*radius, z=Math.cos(angle)*radius;
-      const h=3+(i*13%9)*.27;
-      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.08,.14,h*.36,5),darkTree);
-      trunk.position.set(x,h*.16,z);
-      scene.add(trunk);
-      const crown=new THREE.Mesh(new THREE.ConeGeometry(.68+(i%4)*.1,h,7),i%3===0?distantTree:darkTree);
-      crown.position.set(x,h*.65,z);
-      scene.add(crown);
+    // Uneven, layered pine silhouettes, with subtle height, lean and density changes.
+    // Reuse geometries to keep the night-scene draw overhead modest.
+    const darkTree = new THREE.MeshStandardMaterial({color:0x0b1b18,roughness:1});
+    const distantTree = new THREE.MeshStandardMaterial({color:0x162620,roughness:1});
+    const treeCone = new THREE.ConeGeometry(1,1,7);
+    const treeTrunk = new THREE.CylinderGeometry(.12,.17,1,5);
+    for (let i=0;i<52;i++) {
+      const row = i % 3;
+      const x = ((i * 13) % 53 - 26) * .69 + Math.sin(i*1.17)*.65;
+      const z = -8.7 - row*2.9 - (i % 5)*.36;
+      const h = 2.6 + ((i*19)%13)*.24;
+      const tree = new THREE.Group();
+      tree.position.set(x,0,z);
+      tree.rotation.z = Math.sin(i*2.45)*.035;
+      const trunk=new THREE.Mesh(treeTrunk,darkTree);
+      trunk.position.y=h*.19;
+      trunk.scale.set(.6,h*.38,.6);
+      tree.add(trunk);
+      for (let layer=0; layer<3; layer++) {
+        const foliage=new THREE.Mesh(treeCone, row===2 ? distantTree : darkTree);
+        const width = .78 + (i%5)*.11;
+        foliage.scale.set(width*(1-layer*.23),h*(.59-layer*.12),width*(1-layer*.23));
+        foliage.position.set(Math.sin(i+layer)*.055,h*(.43+layer*.21),0);
+        foliage.rotation.y=i*.7+layer*.4;
+        tree.add(foliage);
+      }
+      scene.add(tree);
     }
     const key = new THREE.DirectionalLight(0xffeed1, 4.2);
     key.position.set(-3.5, 7.8, 3.8);
@@ -252,18 +314,19 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       lamp.position.set(x,.52,z);
       scene.add(lamp);
     }
-    // Graphic warning placards are fictional set dressing, not safety instructions.
-    const placardMaterial=new THREE.MeshStandardMaterial({color:0x9a824b,metalness:.31,roughness:.73});
-    for (const x of [-4.45,4.45]) {
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.085,1.05,.085),deep);
-      post.position.set(x,.54,-2.8);
+    // Readable warning art with explicit fictional-site labeling.
+    const warningTexture = createWarningPlacard();
+    const signMaterial = new THREE.MeshBasicMaterial({map:warningTexture,side:THREE.DoubleSide});
+    for (const [x,z] of [[-2.75,-1.85],[2.75,-1.85]] as const) {
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.095,1.04,.10),deep);
+      post.position.set(x,.60,z);
       scene.add(post);
-      const sign=new THREE.Mesh(new THREE.BoxGeometry(1.15,.52,.045),placardMaterial);
-      sign.position.set(x,1.08,-2.8);
-      scene.add(sign);
-      const stripe=new THREE.Mesh(new THREE.BoxGeometry(.89,.06,.052),deep);
-      stripe.position.set(x,1.08,-2.765);
-      scene.add(stripe);
+      const signBacking=new THREE.Mesh(new THREE.BoxGeometry(1.25,.70,.055),deep);
+      signBacking.position.set(x,1.18,z);
+      scene.add(signBacking);
+      const placard=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.59),signMaterial);
+      placard.position.set(x,1.18,z+.034);
+      scene.add(placard);
     }
     // Expansion seams belong to the surrounding concrete, not the bay itself.
     for (const side of [-1,1]) {
