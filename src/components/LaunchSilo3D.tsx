@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { siloPose, SILO_SEQUENCE_MS } from '../engine/siloAnimation';
+import {
+  siloPose, siloModelY, siloModelVisible, SILO_SEQUENCE_MS,
+  SILO_DECK_Y, SILO_MODEL_SCALE_Y,
+} from '../engine/siloAnimation';
 
 type Props = { launchSignal: number };
 
@@ -124,6 +127,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     renderer.setClearColor(0x000000, 0);
+    renderer.localClippingEnabled = true;
     renderer.shadowMap.enabled = !lowDetail;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -132,11 +136,11 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     setAvailable(true);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b0e0b, .033);
+    scene.fog = new THREE.FogExp2(0x171a15, .045);
     const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
-    scene.add(new THREE.AmbientLight(0xb7b9a6, 1.12));
-    const key = new THREE.DirectionalLight(0xf4edcd, 3.4);
-    key.position.set(-4, 7, 5);
+    scene.add(new THREE.HemisphereLight(0xb1c1b0, 0x17170f, .85));
+    const key = new THREE.DirectionalLight(0xffeed1, 4.2);
+    key.position.set(-3.5, 7.8, 3.8);
     if (!lowDetail) {
       key.castShadow=true;
       key.shadow.mapSize.set(1024,1024);
@@ -149,11 +153,19 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       key.shadow.bias=-.0004;
     }
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x8d997d, 1.5);
-    fill.position.set(2, 2, -4);
+    const fill = new THREE.DirectionalLight(0x9caf9e, 1.18);
+    fill.position.set(3.2, 3.5, -4.6);
     scene.add(fill);
-    const bayLamp = new THREE.PointLight(0xc4a957, 4.5, 8);
-    bayLamp.position.set(0, .5, 0);
+    const bayLamp = new THREE.PointLight(0xd6b576, 4.7, 8);
+    bayLamp.position.set(0, .55, 0);
+    const warmInspection = new THREE.SpotLight(0xffdab0, 18, 14, .66, .78, 1);
+    warmInspection.position.set(-3.4, 6.3, 3.5);
+    warmInspection.target.position.set(0, .3, 0);
+    scene.add(warmInspection, warmInspection.target);
+    const coolInspection = new THREE.SpotLight(0x81988b, 11, 13, .72, .85, 1);
+    coolInspection.position.set(3.1, 4.7, -2.6);
+    coolInspection.target.position.set(0, 1.2, 0);
+    scene.add(coolInspection, coolInspection.target);
     scene.add(bayLamp);
 
     const armor = new THREE.MeshStandardMaterial({ color: 0x252a24, metalness: .72, roughness: .47 });
@@ -226,12 +238,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const hatchRight = new THREE.Group();
     hatchLeft.position.set(-1.22, .21, 0);
     hatchRight.position.set(1.22, .21, 0);
-    const doorGeometry = new THREE.BoxGeometry(1.15, .18, 2.25);
+    const doorGeometry = new THREE.BoxGeometry(1.25, .18, 2.25);
     const leftDoor = new THREE.Mesh(doorGeometry, armor);
-    leftDoor.position.x = .585;
+    leftDoor.position.x = .61;
     hatchLeft.add(leftDoor);
     const rightDoor = new THREE.Mesh(doorGeometry, armor);
-    rightDoor.position.x = -.585;
+    rightDoor.position.x = -.61;
     hatchRight.add(rightDoor);
     leftDoor.castShadow = true;
     rightDoor.castShadow = true;
@@ -327,8 +339,43 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       mark.position.set(Math.sin(angle)*.413,-.69,Math.cos(angle)*.413);
       missile.add(mark);
     }
+    // The prop is longer and starts completely below the closed inspection deck.
+    // Clipping at deck level keeps hidden sections from unrealistically appearing
+    // through the solid platform as the animated silhouette emerges.
+    missile.scale.y = SILO_MODEL_SCALE_Y;
+    const deckClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SILO_DECK_Y);
+    missile.traverse(part => {
+      if (!(part instanceof THREE.Mesh)) return;
+      const original = Array.isArray(part.material) ? part.material : [part.material];
+      const clipped = original.map(material => {
+        const copy = material.clone();
+        copy.clippingPlanes = [deckClip];
+        copy.clipShadows = true;
+        return copy;
+      });
+      part.material = Array.isArray(part.material) ? clipped : clipped[0];
+    });
+    missile.position.y = siloModelY(siloPose(null));
+    missile.visible = false;
     scene.add(missile);
 
+    // A restrained layer of stationary atmospheric dust lends scale to the lit bay.
+    const dustCount = lowDetail ? 18 : 58;
+    const dustXYZ = new Float32Array(dustCount * 3);
+    for (let i=0; i<dustCount; i++) {
+      const angle=i*2.39996;
+      const radius=1.35+((i*17)%43)/43*3.1;
+      dustXYZ[3*i] = Math.cos(angle)*radius;
+      dustXYZ[3*i+1] = .25+((i*29)%61)/61*4;
+      dustXYZ[3*i+2] = Math.sin(angle)*radius;
+    }
+    const dustGeo=new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustXYZ, 3));
+    const dust=new THREE.Points(dustGeo, new THREE.PointsMaterial({
+      color:0xe4d6b6, size:.017, transparent:true,
+      opacity:lowDetail ? .13 : .24, depthWrite:false,
+    }));
+    scene.add(dust);
     const dotCount = lowDetail ? 18 : 42;
     const dots = new Float32Array(dotCount * 3);
     const dotGeometry = new THREE.BufferGeometry();
@@ -338,6 +385,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     particles.visible = false;
+    particles.material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0,1,0),-SILO_DECK_Y)];
     scene.add(particles);
 
     function resize() {
@@ -379,15 +427,15 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const elapsed = startedRef.current === null ? null : timestamp - startedRef.current;
       if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
       const pose = siloPose(elapsed, reduced);
-      hatchLeft.rotation.z = .91 + pose.hatch * .61;
-      hatchRight.rotation.z = -.91 - pose.hatch * .61;
-      // The inspection object remains visible while parked. Launch remains illustrative.
-      missile.position.y = -.18 + 7.6 * pose.ascent;
-      missile.rotation.y = Math.sin(timestamp * .00023) * .055;
-      missile.visible = pose.ascent < .95;
+      // Shut completely at rest. Open, reveal the rising prop, then re-seal.
+      hatchLeft.rotation.z = pose.hatch * 1.36;
+      hatchRight.rotation.z = -pose.hatch * 1.36;
+      missile.position.y = siloModelY(pose);
+      missile.rotation.y = Math.sin(timestamp * .00017) * .018;
+      missile.visible = siloModelVisible(pose) && pose.ascent < .96;
       exhaustMaterial.opacity = pose.thrust * .46;
       glow.scale.y = Math.max(.01, pose.thrust * (1.1 + .1 * Math.sin(timestamp * .03)));
-      particles.visible = pose.thrust > .1;
+      particles.visible = missile.visible && pose.thrust > .1;
       const positions = dotGeometry.attributes.position.array as Float32Array;
       for (let i = 0; i < dotCount; i++) {
         const v = (timestamp * .0012 + i * .061) % 1;
@@ -397,10 +445,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         positions[i * 3 + 2] = Math.sin(a) * (.05 + v * .25);
       }
       dotGeometry.attributes.position.needsUpdate = true;
-      bayLamp.intensity = 3 + pose.glow * 5;
+      bayLamp.intensity = 2.4 + pose.glow * 3.5;
       const sway = Math.sin(timestamp * .00017) * .09;
-      camera.position.set(3.35 + sway + pose.shake * Math.sin(timestamp * .1), 2.95 + pose.ascent * .3, 6.65);
-      camera.lookAt(0, .86 + pose.ascent * .8, 0);
+      camera.position.set(3.75 + sway + pose.shake * Math.sin(timestamp * .1), 3.15 + pose.ascent * 1.12, 7.25);
+      camera.lookAt(0, .65 + pose.ascent * 2.7, 0);
       renderer.render(scene, camera);
     }
 
