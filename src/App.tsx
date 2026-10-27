@@ -196,6 +196,8 @@ function CommandDeck({
             <span>SELECTED MODEL</span>
             <strong>{activeModel.label}</strong>
             <small>{liveMode ? 'Server confirms model on mission start' : 'Preview selection / no inference'}</small>
+            {selectedCategory === 'operations' && operationsMode === 'coding' &&
+              <small className="model-cost-warning">Cloudflare free usage is limited. Paid accounts may incur charges.</small>}
           </div>
         </div>
         <div className="mission-input">
