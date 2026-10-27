@@ -399,8 +399,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       dotGeometry.attributes.position.needsUpdate = true;
       bayLamp.intensity = 3 + pose.glow * 5;
       const sway = Math.sin(timestamp * .00017) * .09;
-      camera.position.set(4.1 + sway + pose.shake * Math.sin(timestamp * .1), 3.3 + pose.ascent * .3, 7.55);
-      camera.lookAt(0, .83 + pose.ascent * .8, 0);
+      camera.position.set(3.35 + sway + pose.shake * Math.sin(timestamp * .1), 2.95 + pose.ascent * .3, 6.65);
+      camera.lookAt(0, .86 + pose.ascent * .8, 0);
       renderer.render(scene, camera);
     }
 
