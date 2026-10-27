@@ -5,13 +5,13 @@
 **Repository:** `Link9060/ARRAY`  
 **Status:** Prototype UI with authenticated RAVIN text-only mission API adapter and optional Supabase mission-history persistence (see [SUPABASE.md](SUPABASE.md))  
 **Canonical product name:** RAVIN ARRAY (UI may display `RAVIN / ARRAY`)  
-**Last product spec update:** 2026-10-15
+**Last product spec update:** 2026-10-27
 
 ---
 
 ## 1. What we are building
 
-RAVIN ARRAY transforms AI agent management into a cinematic, precise, navigable *launch array*. Instead of a conventional list of chatbots, users interact with four visual formations of agent nodes positioned around a large central RAVIN Core node. They configure a mission from a grounded command panel at the bottom of the screen, deploy a selected agent with a restrained abstract launch animation, and switch to a **Flight Monitor** showing symbolic trajectories, real execution events (once a backend is attached), and results.
+RAVIN ARRAY transforms AI agent management into a cinematic, precise, navigable *launch array*. Instead of a conventional list of chatbots, users interact with two visual formations of six interchangeable worker nodes positioned around a large central RAVIN Core node. They configure a mission from a grounded command panel at the bottom of the screen, deploy a selected agent with a restrained abstract launch animation, and switch to a **Flight Monitor** showing symbolic trajectories, real execution events (once a backend is attached), and results.
 
 The missile-silo / flight-path idea is a **visual metaphor for deploying software workers**, not a weapons system. Keep everything abstract and suitable for an everyday productivity application. There is no physical targeting, armament, or real-world missile functionality.
 
@@ -30,7 +30,7 @@ The missile-silo / flight-path idea is a **visual metaphor for deploying softwar
 
 ### Primary view A: Launch Array
 - **Center:** a visually dominant RAVIN Core orb; activation is a shortcut to the RAVIN chat. The destination is configurable with `VITE_RAVIN_CHAT_URL`.
-- **Four arrays:** 2 × 2 category formations around RAVIN Core. Each formation has a category title, short description, and agent launch nodes (dots).
+- **Two arrays:** Intelligence (six research/planning slots) and Operations (six general-purpose slots) around RAVIN Core. Operations has a General / Coding model switch.
 - **Individual node:** corresponds to one registered agent. Hover / focus reveals identity and role. Clicking selects the agent and updates bottom command controls.
 - **Status language:** standby, selected, deploying, active, complete, attention. Accessible labels and text accompany color or animation.
 - **Bottom command deck:** current category, selected agent, objective text, execution policy, and Launch action. Launch is disabled without a valid task.
@@ -44,16 +44,17 @@ The missile-silo / flight-path idea is a **visual metaphor for deploying softwar
 - Always distinguish idle/no missions, offline, queued, running, waiting approval, succeeded, failed, canceled.
 - Mission output / artifacts and transparent logs are a later backend-dependent milestone.
 
-### Four categories (initial taxonomy)
+### Two worker classes (current)
 
-| Category | Intent | Example agents |
-| --- | --- | --- |
-| **Intelligence** | Investigate, verify, understand | Scout, Analyst, Researcher, Auditor, Synthesist, Pathfinder |
-| **Creation** | Write, design, build | Architect, Builder, Designer, Writer, Prototyper, Refiner |
-| **Coordination** | Plan, structure, orchestrate | Planner, Navigator, Scheduler, Organizer, Strategist, Dispatcher |
-| **Execution** | Operate with explicit permissions | Operator, Monitor, Integrator, Tester, Reporter, Maintainer |
+| Class | Slots | Mission type | Default model |
+| --- | --- | --- | --- |
+| Intelligence | 6 | Research, planning, reasoning | Granite 4.0 H Micro |
+| Operations · General | 6 | Writing, general creation, problem-solving | Gemma 4 26B A4B |
+| Operations · Coding | Same 6 Operations slots | Code drafts and debugging guidance | Qwen 3.8 27B |
 
-Names are **initial UI registry fixtures**, not assertions that model tools or capabilities are already connected. The registry must be replaceable with a backend-supplied catalog.
+When **Operations → Coding** is selected, ARRAY sends `operationsMode: "coding"` to the authenticated RAVIN API. The server validates the class and resolves `@cf/qwen/qwen3.8-27b` using existing Cloudflare Workers AI credentials. General uses RAVIN's configured work model with **no tools**. All ARRAY missions remain text-only, with no automatic code modification, shopping, or deployments. Simulation explicitly does not run the selected model.
+
+Twelve slots are UI identities, not a promise of twelve concurrent hosted model processes. The current mission server still limits actual concurrency to two jobs.
 
 ## 3. Core experience / user journey
 
@@ -70,7 +71,7 @@ Names are **initial UI registry fixtures**, not assertions that model tools or c
 8. Return to Launch Array for another deployment; RAVIN Core remains a direct chat shortcut.
 
 ### Agent cardinality / scalability
-Start with six agent fixtures per formation (24 total). The layout should scale to different categories and agent counts without position assumptions; agents should be data-driven. Do not assume 24 is a permanent limit.
+Start with six worker slots per formation (12 total). The layout should scale to different categories and agent counts without position assumptions; agents should be data-driven. Do not assume 24 is a permanent limit.
 
 ## 4. Technical plan
 
@@ -244,7 +245,7 @@ Semantic controls, keyboard focus, minimum comfortable touch targets, proper for
 
 ### First release acceptance criteria
 - App builds cleanly using `npm run build`.
-- Four named categories render with distinguishable selectable agents.
+- Two classes render with six distinguishable selectable units apiece.
 - RAVIN Core is keyboard accessible and opens a configurable chat destination.
 - No blank-objective missions; changing category / agent behaves consistently.
 - Launch mode and Flight Monitor are navigable without refresh.
