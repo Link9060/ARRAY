@@ -1,15 +1,69 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { siloPose } from '../engine/siloAnimation';
+import { siloPose, SILO_SEQUENCE_MS } from '../engine/siloAnimation';
 
 type Props = { launchSignal: number };
 
-/** A fictional signal pod emerging from a stylized hatch, not a real spacecraft or weapon system. */
+/**
+ * Fictional cold-war-inspired launch-bay exhibit for software tasks.
+ * Shapes, hazard graphics and motion are decorative, not weapon engineering.
+ */
+function createHazardMark(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable.');
+  ctx.clearRect(0, 0, 256, 256);
+  ctx.fillStyle = '#d9bd67';
+  ctx.beginPath();
+  ctx.arc(128, 128, 113, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#10120e';
+  for (let i = 0; i < 3; i++) {
+    const angle = -Math.PI / 2 + i * Math.PI * 2 / 3;
+    ctx.beginPath();
+    ctx.arc(128, 128, 88, angle - .43, angle + .43);
+    ctx.arc(128, 128, 27, angle + .43, angle - .43, true);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(128, 128, 17, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#10120e';
+  ctx.lineWidth = 11;
+  ctx.beginPath();
+  ctx.arc(128, 128, 109, 0, Math.PI * 2);
+  ctx.stroke();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createStencil(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable.');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#c9d1b3';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 68px monospace';
+  ctx.fillText('ARRAY // 06', 256, 77);
+  ctx.font = 'bold 26px monospace';
+  ctx.fillStyle = '#dbbe6a';
+  ctx.fillText('FICTIONAL · DISPLAY', 256, 127);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export default function LaunchSilo3D({ launchSignal }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<number | null>(null);
-  const [available, setAvailable] = useState(true);
   const repaintRef = useRef<(() => void) | null>(null);
+  const [available, setAvailable] = useState(true);
 
   useEffect(() => {
     if (launchSignal > 0) startedRef.current = performance.now();
@@ -31,14 +85,14 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       renderer = new THREE.WebGLRenderer({
         alpha: true, antialias: !lowDetail, powerPreference: 'low-power',
       });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowDetail ? 1.15 : 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowDetail ? 1.2 : 1.6));
     } catch {
       setAvailable(false);
       return;
     }
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.45;
+    renderer.toneMappingExposure = 1.12;
     renderer.setClearColor(0x000000, 0);
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.className = 'silo-webgl-canvas';
@@ -46,118 +100,151 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     setAvailable(true);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x090f1b, 0.037);
-    const camera = new THREE.PerspectiveCamera(38, 1, .1, 110);
-    const ambient = new THREE.AmbientLight(0x8baccd, 2.3);
-    scene.add(ambient);
-    const key = new THREE.DirectionalLight(0xdfeaff, 3.6);
-    key.position.set(-3, 7, 5);
+    scene.fog = new THREE.FogExp2(0x0b0e0b, .033);
+    const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
+    scene.add(new THREE.AmbientLight(0xb7b9a6, 1.7));
+    const key = new THREE.DirectionalLight(0xf4edcd, 3.4);
+    key.position.set(-4, 7, 5);
     scene.add(key);
-    const rim = new THREE.PointLight(0x61bfff, 26, 12);
-    rim.position.set(3, 2.6, -2);
-    scene.add(rim);
-    const beacon = new THREE.PointLight(0x80eaf6, 12, 9);
-    beacon.position.set(0, .4, 0);
-    scene.add(beacon);
+    const fill = new THREE.DirectionalLight(0x8d997d, 1.5);
+    fill.position.set(2, 2, -4);
+    scene.add(fill);
+    const bayLamp = new THREE.PointLight(0xc4a957, 4.5, 8);
+    bayLamp.position.set(0, .5, 0);
+    scene.add(bayLamp);
 
-    const metal = new THREE.MeshStandardMaterial({ color: 0x182537, metalness: .82, roughness: .27 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x0b1421, metalness: .7, roughness: .4 });
-    const silver = new THREE.MeshStandardMaterial({ color: 0xa1b9cb, metalness: .79, roughness: .22 });
-    const ceramic = new THREE.MeshStandardMaterial({ color: 0x31485f, metalness: .42, roughness: .29 });
-    const luminous = new THREE.MeshBasicMaterial({ color: 0x9cf2ff });
-    const line = new THREE.MeshBasicMaterial({ color: 0x69beda, transparent: true, opacity: .62 });
+    const armor = new THREE.MeshStandardMaterial({ color: 0x252a24, metalness: .72, roughness: .47 });
+    const deep = new THREE.MeshStandardMaterial({ color: 0x0b0d0c, metalness: .55, roughness: .65 });
+    const graphite = new THREE.MeshStandardMaterial({ color: 0x151a17, metalness: .58, roughness: .53 });
+    const olive = new THREE.MeshStandardMaterial({ color: 0x545c49, metalness: .58, roughness: .58 });
+    const brushed = new THREE.MeshStandardMaterial({ color: 0x6e7469, metalness: .74, roughness: .48 });
+    const caution = new THREE.MeshBasicMaterial({ color: 0xd1af56 });
+    const fineLine = new THREE.MeshBasicMaterial({ color: 0x788268, transparent: true, opacity: .62 });
     const exhaustMaterial = new THREE.MeshBasicMaterial({
-      color: 0x86e9ff, transparent: true, opacity: 0,
+      color: 0xd5b975, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
     });
 
-    // Heavy industrial docking well, illuminated concentric rails and service deck.
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(1.57, 1.78, .48, 64), metal);
-    platform.position.y = -.31;
-    scene.add(platform);
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.97, .97, .12, 64), dark);
-    shaft.position.y = -.01;
-    scene.add(shaft);
-    const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.04, .035, 10, 72), luminous);
-    innerRing.rotation.x = Math.PI / 2;
-    innerRing.position.y = .08;
-    scene.add(innerRing);
-    for (const [radius, y, material] of [
-      [1.39, -.09, silver], [1.65, -.34, line], [1.88, -.49, line],
+    // Stylized inspection platform: concentric industrial steel rings and armor plates.
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.69, 1.87, .47, 64), armor);
+    plinth.position.y = -.33;
+    scene.add(plinth);
+    const well = new THREE.Mesh(new THREE.CylinderGeometry(1.01, 1.01, .12, 64), deep);
+    well.position.y = -.04;
+    scene.add(well);
+    for (const [radius, height, material] of [
+      [1.035, .04, caution],
+      [1.44, -.08, brushed],
+      [1.73, -.49, fineLine],
+      [1.97, -.5, fineLine],
     ] as const) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .016, 7, 88), material);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .016, 8, 72), material);
       ring.rotation.x = Math.PI / 2;
-      ring.position.y = y;
+      ring.position.y = height;
       scene.add(ring);
     }
-    for (let index = 0; index < 12; index++) {
-      const angle = index * Math.PI / 6;
-      const bolt = new THREE.Mesh(new THREE.BoxGeometry(.12, .045, .23), silver);
-      bolt.position.set(Math.cos(angle) * 1.44, -.05, Math.sin(angle) * 1.44);
-      bolt.rotation.y = -angle;
-      scene.add(bolt);
+    const wellLights: THREE.Mesh[] = [];
+    for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI / 8;
+      const isWarning = i % 4 === 0;
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(.13, .035, isWarning ? .37 : .15),
+        isWarning ? caution : brushed,
+      );
+      block.position.set(Math.cos(angle) * 1.48, -.03, Math.sin(angle) * 1.48);
+      block.rotation.y = -angle;
+      scene.add(block);
+      if (isWarning) wellLights.push(block);
     }
 
-    // Symmetrical roof panels swivel away from the launch well on side hinges.
+    // Oversized armored hatch doors, with stripe-engraved inspection markings.
     const hatchLeft = new THREE.Group();
     const hatchRight = new THREE.Group();
-    hatchLeft.position.set(-1.21, .22, 0);
-    hatchRight.position.set(1.21, .22, 0);
-    const doorGeometry = new THREE.BoxGeometry(1.13, .14, 2.14);
-    const leftDoor = new THREE.Mesh(doorGeometry, ceramic);
-    leftDoor.position.x = .58;
+    hatchLeft.position.set(-1.22, .21, 0);
+    hatchRight.position.set(1.22, .21, 0);
+    const doorGeometry = new THREE.BoxGeometry(1.15, .18, 2.25);
+    const leftDoor = new THREE.Mesh(doorGeometry, armor);
+    leftDoor.position.x = .585;
     hatchLeft.add(leftDoor);
-    const rightDoor = new THREE.Mesh(doorGeometry, ceramic);
-    rightDoor.position.x = -.58;
+    const rightDoor = new THREE.Mesh(doorGeometry, armor);
+    rightDoor.position.x = -.585;
     hatchRight.add(rightDoor);
     scene.add(hatchLeft, hatchRight);
     for (const door of [leftDoor, rightDoor]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(.065, .014, 1.68), luminous);
-      strip.position.set(0, .082, 0);
-      door.add(strip);
+      for (let j = -2; j <= 2; j++) {
+        const seam = new THREE.Mesh(new THREE.BoxGeometry(.055, .014, .17), caution);
+        seam.position.set(0, .107, j * .36);
+        door.add(seam);
+      }
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(.05, .045, 1.85), brushed);
+      ridge.position.set(0, .113, 0);
+      door.add(ridge);
     }
 
-    // A small abstract orbital data pod with lighting, not a functional vehicle.
-    const pod = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(.235, .29, 1.45, 24), silver);
-    pod.add(body);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(.235, .57, 24), silver);
-    nose.position.y = 1.01;
-    pod.add(nose);
-    const collar = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, .16, 24), dark);
-    collar.position.y = -.63;
-    pod.add(collar);
-    for (const height of [-.49, .25, .66]) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(.246, .021, 7, 32), luminous);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = height;
-      pod.add(ring);
+    // Fictional exhibit missile silhouette: matt black casing, hazard badges,
+    // broad decorative bands and stylized fins. No working/functional details.
+    const missile = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.CylinderGeometry(.385, .41, 2.65, 36), graphite);
+    hull.position.y = 0;
+    missile.add(hull);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(.387, .91, 36), armor);
+    nose.position.y = 1.78;
+    missile.add(nose);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(.045, 12, 10), brushed);
+    tip.position.y = 2.21;
+    missile.add(tip);
+    for (const y of [-1.20, -.82, .88, 1.29]) {
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(.415, .415, .095, 36), y > .5 ? olive : deep);
+      band.position.y = y;
+      missile.add(band);
     }
-    const podEye = new THREE.Mesh(new THREE.SphereGeometry(.105, 14, 12), luminous);
-    podEye.position.set(0, .37, .239);
-    pod.add(podEye);
-    const glow = new THREE.Mesh(new THREE.ConeGeometry(.22, 1.9, 20, 1, true), exhaustMaterial);
-    glow.position.y = -1.67;
+    for (const y of [-.73, 1.05]) {
+      const groove = new THREE.Mesh(new THREE.TorusGeometry(.417, .018, 6, 36), brushed);
+      groove.rotation.x = Math.PI / 2;
+      groove.position.y = y;
+      missile.add(groove);
+    }
+    const lowerSkirt = new THREE.Mesh(new THREE.CylinderGeometry(.42, .46, .30, 36), deep);
+    lowerSkirt.position.y = -1.48;
+    missile.add(lowerSkirt);
+    for (let index = 0; index < 4; index++) {
+      const angle = index * Math.PI / 2;
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(.075, .72, .58), armor);
+      fin.position.set(Math.sin(angle) * .43, -1.25, Math.cos(angle) * .43);
+      fin.rotation.y = angle;
+      missile.add(fin);
+    }
+    const hazardTexture = createHazardMark();
+    const stencilTexture = createStencil();
+    const badge = new THREE.Mesh(new THREE.PlaneGeometry(.55, .55), new THREE.MeshBasicMaterial({
+      map: hazardTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    }));
+    badge.position.set(0, .35, .425);
+    missile.add(badge);
+    const serial = new THREE.Mesh(new THREE.PlaneGeometry(.74, .235), new THREE.MeshBasicMaterial({
+      map: stencilTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    }));
+    serial.position.set(0, -.30, .425);
+    missile.add(serial);
+    const rearBadge = badge.clone();
+    rearBadge.position.set(0, .35, -.425);
+    rearBadge.rotation.y = Math.PI;
+    missile.add(rearBadge);
+
+    const glow = new THREE.Mesh(new THREE.ConeGeometry(.23, 1.9, 20, 1, true), exhaustMaterial);
     glow.rotation.x = Math.PI;
-    pod.add(glow);
-    const exhaustRing = new THREE.Mesh(new THREE.TorusGeometry(.22, .024, 6, 28), luminous);
-    exhaustRing.rotation.x = Math.PI / 2;
-    exhaustRing.position.y = -.8;
-    pod.add(exhaustRing);
-    scene.add(pod);
+    glow.position.y = -2.44;
+    missile.add(glow);
+    scene.add(missile);
 
-    // Light particles form a stylized trail. No smoke textures or external assets.
-    const dotCount = lowDetail ? 28 : 65;
+    const dotCount = lowDetail ? 18 : 42;
     const dots = new Float32Array(dotCount * 3);
     const dotGeometry = new THREE.BufferGeometry();
     dotGeometry.setAttribute('position', new THREE.BufferAttribute(dots, 3));
-    const particles = new THREE.Points(
-      dotGeometry,
-      new THREE.PointsMaterial({
-        size: .055, color: 0x91efff, transparent: true, opacity: .8,
-        sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false,
-      }),
-    );
+    const particles = new THREE.Points(dotGeometry, new THREE.PointsMaterial({
+      size: .045, color: 0xc7bd90, transparent: true, opacity: .54,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
     particles.visible = false;
     scene.add(particles);
 
@@ -172,15 +259,21 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
 
-    const onVisibility = () => { visible = document.visibilityState === 'visible'; if (visible && !stopped) loop(); };
+    const onVisibility = () => {
+      visible = document.visibilityState === 'visible';
+      if (visible && !stopped) loop();
+    };
     document.addEventListener('visibilitychange', onVisibility);
-    const intersection = new IntersectionObserver(entries => {
+    const observer = new IntersectionObserver(entries => {
       visible = entries[0]?.isIntersecting === true && document.visibilityState === 'visible';
       if (visible && !stopped) loop();
     }, { threshold: .01 });
-    intersection.observe(host);
-
-    const onReduced = () => { reduced = reducedQuery.matches; if (reduced) renderFrame(performance.now()); else loop(); };
+    observer.observe(host);
+    const onReduced = () => {
+      reduced = reducedQuery.matches;
+      if (reduced) renderFrame(performance.now());
+      else loop();
+    };
     reducedQuery.addEventListener('change', onReduced);
     const onContextLost = (event: Event) => {
       event.preventDefault();
@@ -191,38 +284,38 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
 
     function renderFrame(timestamp: number) {
-      const ms = startedRef.current === null ? null : timestamp - startedRef.current;
-      if (ms !== null && ms > 4800) startedRef.current = null;
-      const pose = siloPose(ms, reduced);
-      hatchLeft.rotation.z = pose.hatch * 1.34;
-      hatchRight.rotation.z = -pose.hatch * 1.34;
-      pod.position.y = -1.32 + 7.1 * pose.ascent;
-      pod.rotation.y = timestamp * .00018;
-      pod.visible = pose.hatch > .12 || (ms === null ? false : pose.ascent > 0);
-      exhaustMaterial.opacity = pose.thrust * .82;
-      glow.scale.y = Math.max(.01, pose.thrust * (1.15 + .25 * Math.sin(timestamp * .028)));
-      particles.visible = pose.thrust > .01;
+      const elapsed = startedRef.current === null ? null : timestamp - startedRef.current;
+      if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
+      const pose = siloPose(elapsed, reduced);
+      hatchLeft.rotation.z = .91 + pose.hatch * .61;
+      hatchRight.rotation.z = -.91 - pose.hatch * .61;
+      // The inspection object remains visible while parked. Launch remains illustrative.
+      missile.position.y = -.18 + 7.6 * pose.ascent;
+      missile.rotation.y = Math.sin(timestamp * .00023) * .055;
+      missile.visible = pose.ascent < .95;
+      exhaustMaterial.opacity = pose.thrust * .46;
+      glow.scale.y = Math.max(.01, pose.thrust * (1.1 + .1 * Math.sin(timestamp * .03)));
+      particles.visible = pose.thrust > .1;
       const positions = dotGeometry.attributes.position.array as Float32Array;
       for (let i = 0; i < dotCount; i++) {
-        const v = ((timestamp * .0018 + i * .072) % 1);
-        const a = i * 2.39996;
-        const radius = .07 + .34 * v;
-        positions[3 * i] = Math.cos(a) * radius;
-        positions[3 * i + 1] = pod.position.y - 1.02 - v * 2.6;
-        positions[3 * i + 2] = Math.sin(a) * radius;
+        const v = (timestamp * .0012 + i * .061) % 1;
+        const a = i * 2.4;
+        positions[i * 3] = Math.cos(a) * (.05 + v * .25);
+        positions[i * 3 + 1] = missile.position.y - 1.25 - v * 2.2;
+        positions[i * 3 + 2] = Math.sin(a) * (.05 + v * .25);
       }
       dotGeometry.attributes.position.needsUpdate = true;
-      beacon.intensity = 6 + 15 * pose.glow;
-      innerRing.scale.setScalar(1 + pose.glow * .025);
-      const idleTurn = Math.sin(timestamp * .00022) * .12;
-      camera.position.set(4.6 + idleTurn + pose.shake * Math.sin(timestamp * .09), 3.65 + pose.ascent * .8, 7.6);
-      camera.lookAt(0, .56 + pose.ascent * 1.4, 0);
+      bayLamp.intensity = 3 + pose.glow * 5;
+      const sway = Math.sin(timestamp * .00017) * .09;
+      camera.position.set(4.1 + sway + pose.shake * Math.sin(timestamp * .1), 3.3 + pose.ascent * .3, 7.55);
+      camera.lookAt(0, .83 + pose.ascent * .8, 0);
       renderer.render(scene, camera);
     }
+
     function loop() {
       cancelAnimationFrame(frameId);
       if (stopped || !visible || reduced) return;
-      frameId = requestAnimationFrame((time) => {
+      frameId = requestAnimationFrame(time => {
         if (time - lastFrame >= 33) {
           renderFrame(time);
           lastFrame = time;
@@ -238,17 +331,20 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       stopped = true;
       repaintRef.current = null;
       cancelAnimationFrame(frameId);
-      intersection.disconnect();
+      observer.disconnect();
       resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       reducedQuery.removeEventListener('change', onReduced);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
-      scene.traverse((object) => {
+      scene.traverse(object => {
         if (!(object instanceof THREE.Mesh || object instanceof THREE.Points)) return;
         object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) material.dispose();
       });
+      // In addition to materials, WebGL textures must be explicitly destroyed.
+      hazardTexture.dispose();
+      stencilTexture.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
@@ -260,8 +356,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       {!available && (
         <div className="silo-webgl-fallback">
           <span className="silo-fallback-rings" />
-          <span className="silo-fallback-symbol">◇</span>
-          <span>3D PREVIEW UNAVAILABLE</span>
+          <span className="silo-fallback-symbol">☢</span>
+          <span>THREE-DIMENSIONAL VIEW UNAVAILABLE</span>
         </div>
       )}
     </div>
