@@ -490,6 +490,19 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     flameHalo.rotation.x=Math.PI;
     flameHalo.position.y=-3.05;
     missile.add(flameHalo);
+    // A separate camera-facing layered glow is visible at CCTV resolutions.
+    // The original thin mesh cones were mostly hidden by the deck clip plane.
+    const flareTexture = createFlareTexture();
+    const flareMaterial = new THREE.SpriteMaterial({
+      map:flareTexture,color:0xffd09a,transparent:true,opacity:0,
+      depthWrite:false,blending:THREE.AdditiveBlending,
+    });
+    const flareSprite = new THREE.Sprite(flareMaterial);
+    flareSprite.scale.set(1.8,4.4,1);
+    flareSprite.visible = false;
+    scene.add(flareSprite);
+    const warmBurst = new THREE.PointLight(0xff9a3b,0,7);
+    scene.add(warmBurst);
     // Matte inspection markings reinforce scale and material without real engineering.
     for (const y of [-1.03,-.93,-.10,.12,.78]) {
       const thin = new THREE.Mesh(new THREE.TorusGeometry(.412,.006,5,48),brushed);
@@ -596,8 +609,18 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hatchRight.rotation.z = -pose.hatch * 1.36;
       missile.position.y = siloModelY(pose) + siloExitOffset(elapsed, reduced);
       missile.rotation.y = Math.sin(timestamp * .00017) * .018;
-      missile.visible = siloModelVisible(pose) && pose.ascent < .96;
+      missile.visible = siloModelVisible(pose)
+        && elapsed !== null && elapsed < SILO_SEQUENCE_MS * .94;
       const cinematicFlare = missile.visible ? pose.thrust : 0;
+      const emissionY = missile.position.y - SILO_MODEL_SCALE_Y * 1.75;
+      const plumeVisible = cinematicFlare > .04 && emissionY > SILO_DECK_Y + .08;
+      flareSprite.visible = plumeVisible;
+      flareSprite.position.set(0, emissionY - 1.55, 0);
+      flareMaterial.opacity = plumeVisible ? cinematicFlare * .95 : 0;
+      flareSprite.scale.set(1.65 + Math.sin(timestamp*.035)*.13, 3.9 + Math.cos(timestamp*.044)*.22, 1);
+      warmBurst.intensity = plumeVisible ? 6.4 * cinematicFlare : 0;
+      warmBurst.position.set(0, Math.max(.5,emissionY), 0);
+      lowerBayLight.intensity = 2.1 + (plumeVisible ? 3.7 * cinematicFlare : 0);
       exhaustMaterial.opacity = cinematicFlare * .92;
       flameCoreMaterial.opacity = cinematicFlare * .98;
       flameHaloMaterial.opacity = cinematicFlare * .38;
@@ -619,7 +642,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       // and eases back to rest before the hatches finish closing.
       const cameraLift = siloCameraLift(elapsed, reduced);
       const sway = reduced ? 0 : Math.sin(timestamp * .00017) * .035;
-      const quake = pose.shake * (reduced ? 0 : 3.3);
+      const quake = reduced ? 0 : pose.thrust * .055 * (1 - pose.ascent*.40);
       camera.position.set(3.75 + sway + quake * Math.sin(timestamp*.13),
         3.15 + cameraLift * .10 + quake * .62 * Math.cos(timestamp*.10),
         7.25 - cameraLift * .14);
@@ -661,6 +684,9 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hazardTexture.dispose();
       stencilTexture.dispose();
       steelTexture.dispose();
+      warningTexture.dispose();
+      flareTexture.dispose();
+      flareMaterial.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
