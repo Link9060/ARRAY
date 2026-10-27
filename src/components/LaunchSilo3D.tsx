@@ -143,7 +143,6 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       ring.position.y = height;
       scene.add(ring);
     }
-    const wellLights: THREE.Mesh[] = [];
     for (let i = 0; i < 16; i++) {
       const angle = i * Math.PI / 8;
       const isWarning = i % 4 === 0;
@@ -154,7 +153,6 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       block.position.set(Math.cos(angle) * 1.48, -.03, Math.sin(angle) * 1.48);
       block.rotation.y = -angle;
       scene.add(block);
-      if (isWarning) wellLights.push(block);
     }
 
     // Oversized armored hatch doors, with stripe-engraved inspection markings.
