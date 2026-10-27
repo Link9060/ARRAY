@@ -493,3 +493,37 @@ h1 span { color:#a8b5d2; font-weight:400; }
 .grove-review-label{display:flex;flex-direction:column;gap:5px;min-width:92px;color:#b9cdec;font:9px var(--mono);}
 .grove-review-label span{color:#bdab7f;font:8px var(--mono);}
 @media(max-width:700px){.grove-review-entry{gap:8px;}.grove-review-label{min-width:70px;}.grove-review-entry strong{font-size:10px;}.grove-review-title{flex-wrap:wrap;}}
+
+/* Two reusable agent classes: retain the central RAVIN Core launch layout. */
+.array-canvas--dual { min-height: 510px; }
+.formation-grid--dual {
+  min-height: 510px;
+  grid-template-rows: 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: min(1090px, 96%);
+  padding: 70px 0;
+  column-gap: clamp(190px, 20vw, 320px);
+  row-gap: 0;
+}
+.category-indicator--operations { background: #90ddc6; }
+.operations-mode { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; }
+.model-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; border: 1px solid #34475f; padding: 4px; border-radius: 8px; background: #0d1520; }
+.model-toggle button { min-height: 36px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #8fa2bd; font: 10px var(--mono); letter-spacing: .06em; }
+.model-toggle button.active { border-color: #637d9e; background: #293b53; color: #f2f7ff; }
+.model-toggle button:hover:not(.active) { background: #1c2a3d; color: #e4edff; }
+.model-identity { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; padding: 11px 12px; border: 1px solid #33465c; border-radius: 7px; background: #101b2b; }
+.model-identity span { font: 9px var(--mono); color: #8d9fba; letter-spacing: .09em; }
+.model-identity strong { font-size: 13px; font-weight: 550; color: #e3eeff; }
+.model-identity small { color: #8397b2; font-size: 10px; line-height: 1.4; }
+@media (max-width: 980px) {
+  .formation-grid--dual { column-gap: 150px; }
+}
+@media (max-width: 730px) {
+  .array-canvas--dual { min-height: 495px; }
+  .formation-grid--dual { min-height: 495px; padding: 185px 9px 35px; column-gap: 10px; grid-template-rows: auto; align-items: start; }
+  .formation-grid--dual .formation { height: auto; }
+  .operations-mode,.model-identity { grid-column: 1 / -1; }
+}
+@media (max-width: 470px) {
+  .formation-grid--dual { column-gap: 6px; }
+}
