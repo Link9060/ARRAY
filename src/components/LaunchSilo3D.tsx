@@ -398,20 +398,43 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
     lowerBayLight.position.set(0,-.85,0);
     scene.add(lowerBayLight);
-    // Low amber floor beacons cast small pools of light along the concrete perimeter.
-    for (const [x,z] of [[-3.3,-3.2],[3.3,-3.2],[-3.3,3.2],[3.3,3.2]] as const) {
-      const fixture=new THREE.Mesh(new THREE.CylinderGeometry(.18,.23,.19,12),
-        new THREE.MeshStandardMaterial({color:0x3a3b30,metalness:.48,roughness:.63}));
-      fixture.position.set(x,.21,z);
-      scene.add(fixture);
-      const lens=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.035,12),
-        new THREE.MeshBasicMaterial({color:0xf5ca75}));
-      lens.position.set(x,.325,z);
-      scene.add(lens);
-      const lamp=new THREE.PointLight(0xe7b968,1.6,3.7);
-      lamp.position.set(x,.52,z);
-      scene.add(lamp);
+    // Four vintage-style rotating visual beacons. Amber at standby,
+    // red during the fictional software-deployment sequence.
+    const rotatingBeacons: { rotor:THREE.Group; light:THREE.PointLight; dome:THREE.MeshStandardMaterial; reflector:THREE.MeshBasicMaterial; }[]=[];
+    for (const [x,z] of [[-3.15,-3.05],[3.15,-3.05],[-3.15,3.05],[3.15,3.05]] as const) {
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(.24,.27,.12,24),
+        new THREE.MeshStandardMaterial({color:0x3a3d39,metalness:.7,roughness:.45}));
+      base.position.set(x,.18,z);scene.add(base);
+      const domeMat=new THREE.MeshStandardMaterial({
+        color:0xedb341,metalness:.05,roughness:.13,
+        transparent:true,opacity:.7,emissive:0xb47b19,emissiveIntensity:.7,
+      });
+      const dome=new THREE.Mesh(new THREE.SphereGeometry(.20,20,12,0,Math.PI*2,0,Math.PI/2),domeMat);
+      dome.position.set(x,.26,z);
+      scene.add(dome);
+      const rotor=new THREE.Group();
+      rotor.position.set(x,.34,z);
+      const reflector=new THREE.MeshBasicMaterial({color:0xffd56c,side:THREE.DoubleSide});
+      const reflectorBlade=new THREE.Mesh(new THREE.BoxGeometry(.26,.14,.055),reflector);
+      reflectorBlade.position.x=.095;rotor.add(reflectorBlade);scene.add(rotor);
+      const light=new THREE.PointLight(0xf8ae43,.7,3.2);
+      light.position.set(x,.42,z);scene.add(light);
+      rotatingBeacons.push({rotor,light,dome:domeMat,reflector});
     }
+    // Smaller, constant-red accent lamps only during the cinematic launch.
+    const accentLamps:THREE.Mesh[]=[];
+    for(let i=0;i<10;i++){
+      const angle=i*Math.PI*2/10;
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(.053,10,8),
+        new THREE.MeshBasicMaterial({color:0xea382b}));
+      bulb.position.set(Math.cos(angle)*2.03,.16,Math.sin(angle)*2.03);
+      bulb.visible=false;
+      scene.add(bulb);
+      accentLamps.push(bulb);
+    }
+    const redAccentLight=new THREE.PointLight(0xdf3026,0,4.0);
+    redAccentLight.position.set(0,.55,0);
+    scene.add(redAccentLight);
     // Contrasting roadside-style yellow signs, both clearly fictional.
     const triangleTexture=createTriangleSymbol();
     const squareTexture=createSquareWarning();
@@ -776,6 +799,19 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const elapsed = startedRef.current === null ? null : timestamp - startedRef.current;
       if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
       const pose = siloPose(elapsed, reduced);
+      const alertActive = elapsed !== null && elapsed < SILO_SEQUENCE_MS && (pose.hatch > .04 || pose.thrust > .02);
+      const beaconColor = alertActive ? 0xed4238 : 0xedb341;
+      for(let i=0;i<rotatingBeacons.length;i++){
+        const beacon=rotatingBeacons[i];
+        beacon.rotor.rotation.y = reduced ? 0 : timestamp*.0065 + i*Math.PI/2;
+        beacon.dome.color.setHex(beaconColor);
+        beacon.dome.emissive.setHex(alertActive ? 0x93221d : 0xb47b19);
+        beacon.reflector.color.setHex(alertActive ? 0xff7161 : 0xffd56c);
+        beacon.light.color.setHex(beaconColor);
+        beacon.light.intensity = .55 + (reduced ? 0 : .8 * Math.max(0,Math.cos(beacon.rotor.rotation.y)));
+      }
+      accentLamps.forEach(lamp => {lamp.visible=alertActive;});
+      redAccentLight.intensity = alertActive ? .68 : 0;
       // Shut completely at rest. Open, reveal the rising prop, then re-seal.
       hatchLeft.rotation.z = pose.hatch * 1.36;
       hatchRight.rotation.z = -pose.hatch * 1.36;
