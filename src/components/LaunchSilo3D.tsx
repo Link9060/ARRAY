@@ -745,7 +745,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     // Smoke is owned by the scene, never by the 6.8-second launch timeline.
     // Each puff has a birth timestamp and can linger for another 12 seconds.
     const smokeTexture=createSmokeTexture();
-    const smokeSlotCount=lowDetail?28:72;
+    const smokeSlotCount=lowDetail?38:82;
     type SmokeSlot={sprite:THREE.Sprite;seed:SmokeSeed|null};
     const smokeSlots:SmokeSlot[]=Array.from({length:smokeSlotCount},()=>{
       const mat=new THREE.SpriteMaterial({
@@ -838,7 +838,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
           x:Math.sin(timestamp*.0021)*.12,
           y:emissionY+.30,
           z:Math.cos(timestamp*.0017)*.11,
-          size:.46+(smokeCursor%5)*.07,
+          size:1.2+(smokeCursor%6)*.12,
           phase:smokeCursor*2.39996,
         };
         smokeLastSpawn=timestamp;
@@ -849,7 +849,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         slot.sprite.visible=smoke.alive && smoke.alpha>.004;
         if(!smoke.alive){slot.seed=null;continue;}
         slot.sprite.position.set(smoke.x,smoke.y,smoke.z);
-        slot.sprite.scale.set(smoke.size,smoke.size*.9,1);
+        slot.sprite.scale.set(smoke.size,smoke.size*.85,1);
         (slot.sprite.material as THREE.SpriteMaterial).opacity=smoke.alpha;
       }
       exhaustMaterial.opacity = cinematicFlare * .92;
