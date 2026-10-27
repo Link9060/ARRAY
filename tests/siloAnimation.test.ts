@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SILO_SEQUENCE_MS, siloPose, siloModelY, siloModelVisible,
+  SILO_SEQUENCE_MS, siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y, SILO_MODEL_TIP_Y,
 } from '../src/engine/siloAnimation';
 
@@ -32,6 +32,26 @@ describe('3D launch visualization choreography', () => {
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .50))).toBe(true);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS + 25))).toBe(false);
     expect(siloPose(SILO_SEQUENCE_MS + 25).hatch).toBe(0);
+  });
+  it('keeps the camera move bounded and returns it smoothly to its home position', () => {
+    expect(siloCameraLift(null)).toBe(0);
+    expect(siloCameraLift(SILO_SEQUENCE_MS * .2)).toBe(0);
+    expect(siloCameraLift(SILO_SEQUENCE_MS * .5)).toBeGreaterThan(0);
+    for (let i = 0; i <= 100; i++) {
+      const lift = siloCameraLift(SILO_SEQUENCE_MS * i / 100);
+      expect(lift).toBeGreaterThanOrEqual(0);
+      expect(lift).toBeLessThanOrEqual(1);
+    }
+    expect(siloCameraLift(SILO_SEQUENCE_MS * .96)).toBe(0);
+    expect(siloCameraLift(SILO_SEQUENCE_MS)).toBe(0);
+    expect(siloCameraLift(SILO_SEQUENCE_MS * .5, true)).toBe(0);
+  });
+  it('moves the decorative prop clear of frame before the doors close', () => {
+    expect(siloExitOffset(null)).toBe(0);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .62)).toBe(0);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .79)).toBeGreaterThan(8);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .85)).toBe(9);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .8, true)).toBe(0);
   });
   it('removes motion and particle exhaust for reduced-motion preference', () => {
     const pose = siloPose(500, true);
