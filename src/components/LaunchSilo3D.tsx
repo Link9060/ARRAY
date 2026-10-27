@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
-  siloPose, siloModelY, siloModelVisible, SILO_SEQUENCE_MS,
+  siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, SILO_SEQUENCE_MS,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y,
 } from '../engine/siloAnimation';
 
@@ -182,14 +182,41 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       new THREE.MeshStandardMaterial({color:0x10150f,roughness: .95,metalness: .11,bumpMap:steelTexture,bumpScale:.028}),
     );
     ground.rotation.x=-Math.PI/2;
-    ground.position.y=-.59;
+    ground.position.y=-3.35;
     ground.receiveShadow=true;
     scene.add(ground);
-    // Peripheral recessed deck seams and hazard markings make the prop feel grounded.
-    for (let i=-3; i<=3; i++) {
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(.015,.004,12),deep);
-      seam.position.set(i*1.65,-.582,0);
-      scene.add(seam);
+    // A continuous concrete surface with a hole makes the bay feel recessed
+    // into the installation rather than perched on a display pedestal.
+    const floorDeck = new THREE.Mesh(
+      new THREE.RingGeometry(1.69, 14, 112),
+      new THREE.MeshStandardMaterial({
+        color:0x242a24, metalness:.18, roughness:.94,
+        bumpMap:steelTexture, bumpScale:.034, side:THREE.DoubleSide,
+      }),
+    );
+    floorDeck.rotation.x=-Math.PI/2;
+    floorDeck.position.y=.095;
+    floorDeck.receiveShadow=true;
+    scene.add(floorDeck);
+    const shaftWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.105, 1.105, 3.8, 80, 1, true),
+      new THREE.MeshStandardMaterial({
+        color:0x141914,metalness:.35,roughness:.91,side:THREE.BackSide,
+      }),
+    );
+    shaftWall.position.y=-1.83;
+    shaftWall.receiveShadow=true;
+    scene.add(shaftWall);
+    const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
+    lowerBayLight.position.set(0,-.85,0);
+    scene.add(lowerBayLight);
+    // Expansion seams belong to the surrounding concrete, not the bay itself.
+    for (const side of [-1,1]) {
+      for (let i=0;i<3;i++) {
+        const seam = new THREE.Mesh(new THREE.BoxGeometry(.015,.004,10),deep);
+        seam.position.set(side*(2.65+i*1.65),.101,0);
+        scene.add(seam);
+      }
     }
     const olive = new THREE.MeshStandardMaterial({ color: 0x545c49, metalness: .58, roughness: .58 });
     const brushed = new THREE.MeshStandardMaterial({ color: 0x6e7469, metalness: .74, roughness: .48 });
@@ -200,21 +227,23 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
     });
 
-    // Stylized inspection platform: concentric industrial steel rings and armor plates.
-    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.69, 1.87, .47, 64), armor);
-    plinth.position.y = -.33;
-    plinth.castShadow=true;
-    plinth.receiveShadow=true;
-    scene.add(plinth);
-    const well = new THREE.Mesh(new THREE.CylinderGeometry(1.01, 1.01, .12, 64), deep);
-    well.position.y = -.04;
-    well.receiveShadow=true;
-    scene.add(well);
+    // Flush metal collar surrounding a dark, open shaft.
+    const rim = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.76, 96), armor);
+    rim.rotation.x=-Math.PI/2;
+    rim.position.y=.116;
+    rim.receiveShadow=true;
+    scene.add(rim);
+    const insetWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.09,1.09,1.7,80,1,true),
+      new THREE.MeshStandardMaterial({color:0x090c09,metalness:.4,roughness:.84,side:THREE.BackSide}),
+    );
+    insetWall.position.y=-.82;
+    scene.add(insetWall);
     for (const [radius, height, material] of [
-      [1.035, .04, caution],
-      [1.44, -.08, brushed],
-      [1.73, -.49, fineLine],
-      [1.97, -.5, fineLine],
+      [1.13, .127, caution],
+      [1.46, .129, brushed],
+      [1.70, .123, fineLine],
+      [1.97, .108, fineLine],
     ] as const) {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .016, 8, 72), material);
       ring.rotation.x = Math.PI / 2;
@@ -228,7 +257,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         new THREE.BoxGeometry(.13, .035, isWarning ? .37 : .15),
         isWarning ? caution : brushed,
       );
-      block.position.set(Math.cos(angle) * 1.48, -.03, Math.sin(angle) * 1.48);
+      block.position.set(Math.cos(angle) * 1.48, .145, Math.sin(angle) * 1.48);
       block.rotation.y = -angle;
       scene.add(block);
     }
@@ -430,7 +459,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       // Shut completely at rest. Open, reveal the rising prop, then re-seal.
       hatchLeft.rotation.z = pose.hatch * 1.36;
       hatchRight.rotation.z = -pose.hatch * 1.36;
-      missile.position.y = siloModelY(pose);
+      missile.position.y = siloModelY(pose) + siloExitOffset(elapsed, reduced);
       missile.rotation.y = Math.sin(timestamp * .00017) * .018;
       missile.visible = siloModelVisible(pose) && pose.ascent < .96;
       exhaustMaterial.opacity = pose.thrust * .46;
@@ -446,9 +475,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       }
       dotGeometry.attributes.position.needsUpdate = true;
       bayLamp.intensity = 2.4 + pose.glow * 3.5;
-      const sway = Math.sin(timestamp * .00017) * .09;
-      camera.position.set(3.75 + sway + pose.shake * Math.sin(timestamp * .1), 3.15 + pose.ascent * 1.12, 7.25);
-      camera.lookAt(0, .65 + pose.ascent * 2.7, 0);
+      // Keep the recessed bay in frame. An understated nod follows the launch
+      // and eases back to rest before the hatches finish closing.
+      const cameraLift = siloCameraLift(elapsed, reduced);
+      const sway = reduced ? 0 : Math.sin(timestamp * .00017) * .035;
+      camera.position.set(3.75 + sway, 3.15 + cameraLift * .10, 7.25 - cameraLift * .14);
+      camera.lookAt(0, .65 + cameraLift * .30, 0);
       renderer.render(scene, camera);
     }
 
