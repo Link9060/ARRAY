@@ -519,41 +519,56 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       scene.add(block);
     }
 
-    // Oversized armored hatch doors, with stripe-engraved inspection markings.
-    const hatchLeft = new THREE.Group();
-    const hatchRight = new THREE.Group();
-    hatchLeft.position.set(-1.22, .21, 0);
-    hatchRight.position.set(1.22, .21, 0);
-    const doorGeometry = new THREE.BoxGeometry(1.25, .18, 2.25);
-    const leftDoor = new THREE.Mesh(doorGeometry, armor);
-    leftDoor.position.x = .61;
+    // Two truly semicircular armor leaves sit flush with the round shaft.
+    // They retain the original outward-opening visual choreography.
+    const hatchLeft=new THREE.Group();
+    const hatchRight=new THREE.Group();
+    const hatchRadius=1.105;
+    hatchLeft.position.set(-hatchRadius,.18,0);
+    hatchRight.position.set(hatchRadius,.18,0);
+    function makeHalfDisc(left:boolean): THREE.ExtrudeGeometry {
+      const shape=new THREE.Shape();
+      if(left) {
+        shape.moveTo(0,hatchRadius);
+        shape.absarc(0,0,hatchRadius,Math.PI/2,Math.PI*1.5,false);
+        shape.lineTo(0,hatchRadius);
+      } else {
+        shape.moveTo(0,-hatchRadius);
+        shape.absarc(0,0,hatchRadius,-Math.PI/2,Math.PI/2,false);
+        shape.lineTo(0,-hatchRadius);
+      }
+      return new THREE.ExtrudeGeometry(shape,{depth:.125,bevelEnabled:false,curveSegments:56});
+    }
+    const leftDoor=new THREE.Mesh(makeHalfDisc(true),armor);
+    const rightDoor=new THREE.Mesh(makeHalfDisc(false),armor);
+    leftDoor.rotation.x=-Math.PI/2;
+    rightDoor.rotation.x=-Math.PI/2;
+    leftDoor.position.x=hatchRadius;
+    rightDoor.position.x=-hatchRadius;
+    for(const [door,side] of [[leftDoor,-1],[rightDoor,1]] as const) {
+      door.castShadow=true;door.receiveShadow=true;
+      // Engraved curved-metal panels, limited to each circular half.
+      for(const z of [-.53,0,.53]){
+        const rib=new THREE.Mesh(new THREE.BoxGeometry(.34,.045,.015),brushed);
+        rib.position.set(side*.47,z,.135);
+        door.add(rib);
+      }
+      for(const z of [-.57,.57]){
+        const stud=new THREE.Mesh(new THREE.CylinderGeometry(.036,.036,.018,10),deep);
+        stud.rotation.x=Math.PI/2;
+        stud.position.set(side*.47,z,.147);
+        door.add(stud);
+      }
+    }
     hatchLeft.add(leftDoor);
-    const rightDoor = new THREE.Mesh(doorGeometry, armor);
-    rightDoor.position.x = -.61;
     hatchRight.add(rightDoor);
-    leftDoor.castShadow = true;
-    rightDoor.castShadow = true;
-    scene.add(hatchLeft, hatchRight);
-    for (const door of [leftDoor, rightDoor]) {
-      for (let j = -2; j <= 2; j++) {
-        const seam = new THREE.Mesh(new THREE.BoxGeometry(.055, .014, .17), caution);
-        seam.position.set(0, .107, j * .36);
-        door.add(seam);
-      }
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(.05, .045, 1.85), brushed);
-      ridge.position.set(0, .113, 0);
-      door.add(ridge);
-      // Decorative inspection seams and fasteners; not functional hardware.
-      for (const x of [-.36,.36]) for (const z of [-.86,-.43,0,.43,.86]) {
-        const rivet = new THREE.Mesh(new THREE.SphereGeometry(.018,7,5),brushed);
-        rivet.position.set(x,.109,z);
-        door.add(rivet);
-      }
-      for (const z of [-.73,.73]) {
-        const armorSeam=new THREE.Mesh(new THREE.BoxGeometry(.95,.008,.014),deep);
-        armorSeam.position.set(0,.108,z);
-        door.add(armorSeam);
-      }
+    scene.add(hatchLeft,hatchRight);
+    // Flush hinge caps at the rim, no large square slab over a round opening.
+    for(const x of [-hatchRadius,hatchRadius]) {
+      const hinge=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.19,24),brushed);
+      hinge.rotation.x=Math.PI/2;
+      hinge.position.set(x,.22,0);
+      scene.add(hinge);
     }
 
     // Fictional exhibit missile silhouette: matt black casing, hazard badges,
