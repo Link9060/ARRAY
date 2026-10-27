@@ -4,7 +4,7 @@ import {
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
   Radar, Radio, ShieldCheck, Sparkles, X, Play, Wifi, LogIn, LogOut, WifiOff,
 } from 'lucide-react';
-import { AGENTS, CATEGORIES, getAgentsForCategory, type Agent, type AgentCategory } from './data/agents';
+import { AGENTS, CATEGORIES, getAgentsForCategory, modelForSelection, type Agent, type AgentCategory, type OperationsMode } from './data/agents';
 import {
   DEMO_RUN_MS, advanceDemoMission, cancelDemoMission, createDemoMission,
   formatDuration, isActiveMission, phaseLabel,
@@ -132,7 +132,7 @@ function ArrayCanvas({
         ))}
       </div>
       <CoreNode />
-      <div className="canvas-coordinates bottom-left">24 AGENTS / 04 ARRAYS</div>
+      <div className="canvas-coordinates bottom-left">12 AGENTS / 02 ARRAYS</div>
       <div className="canvas-coordinates bottom-right">SELECT UNIT TO CONFIGURE <ArrowDownRight size={12} /></div>
     </div>
   );
@@ -140,7 +140,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId, liveMode,
+  onSelectCategory, onLaunch, launchedAgentId, liveMode, operationsMode, setOperationsMode,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -152,7 +152,10 @@ function CommandDeck({
   onLaunch: () => void;
   launchedAgentId: string | null;
   liveMode: boolean;
+  operationsMode: OperationsMode;
+  setOperationsMode: (value: OperationsMode) => void;
 }) {
+  const activeModel = modelForSelection(selectedCategory, operationsMode);
   return (
     <section className="command-deck" aria-label="Agent launch controls">
       <div className="deck-category-row">
@@ -180,6 +183,20 @@ function CommandDeck({
           <div className="selected-agent-name">{selectedAgent.name} <span>{selectedAgent.designation}</span></div>
           <p>{selectedAgent.description}</p>
           <div className="capability-list">{selectedAgent.capabilities.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
+          {selectedCategory === 'operations' && (
+            <div className="operations-mode">
+              <span className="eyebrow">OPERATIONS MODE</span>
+              <div className="model-toggle" role="group" aria-label="Operations model">
+                <button type="button" onClick={() => setOperationsMode('general')} className={operationsMode === 'general' ? 'active' : ''} aria-pressed={operationsMode === 'general'}>GENERAL</button>
+                <button type="button" onClick={() => setOperationsMode('coding')} className={operationsMode === 'coding' ? 'active' : ''} aria-pressed={operationsMode === 'coding'}>CODING</button>
+              </div>
+            </div>
+          )}
+          <div className="model-identity" aria-live="polite">
+            <span>SELECTED MODEL</span>
+            <strong>{activeModel.label}</strong>
+            <small>{liveMode ? 'Server confirms model on mission start' : 'Preview selection / no inference'}</small>
+          </div>
         </div>
         <div className="mission-input">
           <label className="eyebrow" htmlFor="mission-objective">03 / MISSION OBJECTIVE</label>
@@ -210,7 +227,7 @@ function CommandDeck({
               <option value="authorized" disabled={liveMode}>Authorized (future)</option>
             </select>
           </div>
-          <p>{liveMode ? 'Real text-only RAVIN worker. No external actions are permitted.' : 'Preview only. No real tools or permissions are connected.'}</p>
+          <p>{liveMode ? 'Text-only RAVIN mission. Coding creates reviewable code text, not repository changes.' : 'Preview only. No real tools or permissions are connected.'}</p>
           <button
             className="launch-button"
             type="button"
@@ -267,6 +284,8 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
       <div className="inspector-section"><span className="eyebrow">MISSION SETTINGS</span>
         <div className="inspector-detail"><span>Policy</span><strong>{mission.policy === 'review' ? 'Review first' : mission.policy === 'assist' ? 'Assist only' : 'Authorized (future)'}</strong></div>
         <div className="inspector-detail"><span>Engine</span><strong>{mission.isDemo ? 'Local simulator' : 'RAVIN / tool-free AI'}</strong></div>
+        {mission.model && <div className="inspector-detail"><span>Model</span><strong>{mission.model}</strong></div>}
+        {mission.operationsMode === 'coding' && <div className="inspector-detail"><span>Operations mode</span><strong>Coding, text-only</strong></div>}
         <div className="inspector-detail"><span>Output</span><strong>{mission.isDemo ? 'Not generated' : mission.output ? 'Available' : 'Waiting'}</strong></div>
       </div>
       {mission.output && <div className="inspector-section"><span className="eyebrow">RAVIN RESULT / TEXT OUTPUT</span><pre className="mission-output">{mission.output}</pre></div>}
@@ -315,7 +334,8 @@ function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, o
 
 export default function App() {
   const [view, setView] = useState<View>('array');
-  const [selectedAgentId, setSelectedAgentId] = useState('scout');
+  const [selectedAgentId, setSelectedAgentId] = useState('intelligence-01');
+  const [operationsMode, setOperationsMode] = useState<OperationsMode>('general');
   const [objective, setObjective] = useState('');
   const [policy, setPolicy] = useState<ExecutionPolicy>('review');
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -412,12 +432,12 @@ export default function App() {
     if (liveMode) {
       setLaunchedAgentId(selectedAgent.id);
       try {
-        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy);
+        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general');
         setMissions(previous => [mission, ...previous].slice(0,50));
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
         setObjective('');
-        setNotice(`${selectedAgent.name} submitted to live RAVIN. Text-only mission queued.`);
+        setNotice(`${selectedAgent.name} submitted to live RAVIN using ${mission.model || 'server-selected model'}. Text-only mission queued.`);
         setView('monitor');
       } catch(error) {
         setNotice(error instanceof Error ? error.message : 'Live launch failed.');
@@ -433,6 +453,8 @@ export default function App() {
       objective,
       policy,
     });
+    mission.operationsMode = selectedCategory === 'operations' ? operationsMode : 'general';
+    mission.model = modelForSelection(selectedCategory, operationsMode).id;
     setMissions(previous => [mission, ...previous].slice(0,50));
     if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
     setSelectedMissionId(mission.id);
@@ -547,14 +569,14 @@ export default function App() {
         {liveError && <p className="connection-error" role="alert"><WifiOff size={14}/> {liveError}</p>}
         <div className="stats-strip">
           <span><span className="strip-indicator" /> SYSTEM ONLINE <span className="strip-separator">/</span> {liveMode ? 'LIVE TEXT MISSIONS' : 'INTERFACE PREVIEW'}</span>
-          <span>04 <small>DIVISIONS</small><span className="strip-separator">/</span> 24 <small>AGENTS</small></span>
+          <span>02 <small>DIVISIONS</small><span className="strip-separator">/</span> 12 <small>AGENTS</small></span>
           <span>{activeCount.toString().padStart(2, '0')} <small>IN FLIGHT</small><span className="strip-separator">/</span> {recentCount.toString().padStart(2, '0')} <small>COMPLETED</small></span>
         </div>
         {view === 'array' ? (
           <>
             <div className="canvas-labels"><span><Compass size={14} /> THE DEPLOYMENT FIELD</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} liveMode={liveMode}/>
+            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
