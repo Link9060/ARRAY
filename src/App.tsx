@@ -255,7 +255,7 @@ function CommandDeck({
             disabled={!objective.trim() || Boolean(launchedAgentId) || launchPending}
             onClick={onLaunch}
           >
-            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'START LIVE MISSION' : 'LAUNCH DEMO AGENT'}</span>
+            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'DISPATCH TASK' : 'START DEMO TASK'}</span>
             {launchedAgentId ? <Activity size={18} /> : <ArrowUpRight size={20} />}
           </button>
         </div>
