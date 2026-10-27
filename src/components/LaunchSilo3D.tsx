@@ -59,6 +59,36 @@ function createStencil(): THREE.CanvasTexture {
   return texture;
 }
 
+/** Deterministic procedural surface variation, without downloaded textures or assets. */
+function createSteelTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable.');
+  ctx.fillStyle = '#8f8f8f';
+  ctx.fillRect(0,0,512,512);
+  let seed = 137;
+  const next = () => { seed = (Math.imul(seed,1664525)+1013904223)|0; return (seed>>>0)/4294967296; };
+  for (let i=0; i<21000; i++) {
+    const c = Math.floor(85 + next()*90);
+    ctx.fillStyle = `rgba(${c},${c},${c},${.03 + next()*.15})`;
+    ctx.fillRect(next()*512,next()*512,1+next()*2,1+next()*7);
+  }
+  for (let i=0; i<85; i++) {
+    ctx.strokeStyle = `rgba(28,32,28,${.02+next()*.08})`;
+    ctx.lineWidth=.3+next();
+    ctx.beginPath();
+    const x=next()*512,y=next()*512;
+    ctx.moveTo(x,y);
+    ctx.lineTo(x+next()*62,y+next()*3);
+    ctx.stroke();
+  }
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(1.3,2.3);
+  return texture;
+}
+
 export default function LaunchSilo3D({ launchSignal }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<number | null>(null);
@@ -94,6 +124,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     renderer.setClearColor(0x000000, 0);
+    renderer.shadowMap.enabled = !lowDetail;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.className = 'silo-webgl-canvas';
     host.appendChild(renderer.domElement);
@@ -102,9 +134,20 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0b0e0b, .033);
     const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
-    scene.add(new THREE.AmbientLight(0xb7b9a6, 1.7));
+    scene.add(new THREE.AmbientLight(0xb7b9a6, 1.12));
     const key = new THREE.DirectionalLight(0xf4edcd, 3.4);
     key.position.set(-4, 7, 5);
+    if (!lowDetail) {
+      key.castShadow=true;
+      key.shadow.mapSize.set(1024,1024);
+      key.shadow.camera.near=.5;
+      key.shadow.camera.far=18;
+      key.shadow.camera.left=-6;
+      key.shadow.camera.right=6;
+      key.shadow.camera.top=8;
+      key.shadow.camera.bottom=-6;
+      key.shadow.bias=-.0004;
+    }
     scene.add(key);
     const fill = new THREE.DirectionalLight(0x8d997d, 1.5);
     fill.position.set(2, 2, -4);
@@ -115,7 +158,27 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
 
     const armor = new THREE.MeshStandardMaterial({ color: 0x252a24, metalness: .72, roughness: .47 });
     const deep = new THREE.MeshStandardMaterial({ color: 0x0b0d0c, metalness: .55, roughness: .65 });
-    const graphite = new THREE.MeshStandardMaterial({ color: 0x151a17, metalness: .58, roughness: .53 });
+    const steelTexture=createSteelTexture();
+    const graphite = new THREE.MeshStandardMaterial({
+      color: 0x161914, metalness: .66, roughness: .67,
+      bumpMap: steelTexture, bumpScale: .055,
+    });
+    armor.bumpMap=steelTexture;
+    armor.bumpScale=.035;
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(13,13),
+      new THREE.MeshStandardMaterial({color:0x10150f,roughness: .95,metalness: .11,bumpMap:steelTexture,bumpScale:.028}),
+    );
+    ground.rotation.x=-Math.PI/2;
+    ground.position.y=-.59;
+    ground.receiveShadow=true;
+    scene.add(ground);
+    // Peripheral recessed deck seams and hazard markings make the prop feel grounded.
+    for (let i=-3; i<=3; i++) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(.015,.004,12),deep);
+      seam.position.set(i*1.65,-.582,0);
+      scene.add(seam);
+    }
     const olive = new THREE.MeshStandardMaterial({ color: 0x545c49, metalness: .58, roughness: .58 });
     const brushed = new THREE.MeshStandardMaterial({ color: 0x6e7469, metalness: .74, roughness: .48 });
     const caution = new THREE.MeshBasicMaterial({ color: 0xd1af56 });
@@ -128,9 +191,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     // Stylized inspection platform: concentric industrial steel rings and armor plates.
     const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.69, 1.87, .47, 64), armor);
     plinth.position.y = -.33;
+    plinth.castShadow=true;
+    plinth.receiveShadow=true;
     scene.add(plinth);
     const well = new THREE.Mesh(new THREE.CylinderGeometry(1.01, 1.01, .12, 64), deep);
     well.position.y = -.04;
+    well.receiveShadow=true;
     scene.add(well);
     for (const [radius, height, material] of [
       [1.035, .04, caution],
@@ -167,6 +233,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const rightDoor = new THREE.Mesh(doorGeometry, armor);
     rightDoor.position.x = -.585;
     hatchRight.add(rightDoor);
+    leftDoor.castShadow = true;
+    rightDoor.castShadow = true;
     scene.add(hatchLeft, hatchRight);
     for (const door of [leftDoor, rightDoor]) {
       for (let j = -2; j <= 2; j++) {
@@ -177,6 +245,17 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const ridge = new THREE.Mesh(new THREE.BoxGeometry(.05, .045, 1.85), brushed);
       ridge.position.set(0, .113, 0);
       door.add(ridge);
+      // Decorative inspection seams and fasteners; not functional hardware.
+      for (const x of [-.36,.36]) for (const z of [-.86,-.43,0,.43,.86]) {
+        const rivet = new THREE.Mesh(new THREE.SphereGeometry(.018,7,5),brushed);
+        rivet.position.set(x,.109,z);
+        door.add(rivet);
+      }
+      for (const z of [-.73,.73]) {
+        const armorSeam=new THREE.Mesh(new THREE.BoxGeometry(.95,.008,.014),deep);
+        armorSeam.position.set(0,.108,z);
+        door.add(armorSeam);
+      }
     }
 
     // Fictional exhibit missile silhouette: matt black casing, hazard badges,
@@ -184,9 +263,11 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const missile = new THREE.Group();
     const hull = new THREE.Mesh(new THREE.CylinderGeometry(.385, .41, 2.65, 36), graphite);
     hull.position.y = 0;
+    hull.castShadow=true;
     missile.add(hull);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(.387, .91, 36), armor);
     nose.position.y = 1.78;
+    nose.castShadow=true;
     missile.add(nose);
     const tip = new THREE.Mesh(new THREE.SphereGeometry(.045, 12, 10), brushed);
     tip.position.y = 2.21;
@@ -233,6 +314,19 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     glow.rotation.x = Math.PI;
     glow.position.y = -2.44;
     missile.add(glow);
+    // Matte inspection markings reinforce scale and material without real engineering.
+    for (const y of [-1.03,-.93,-.10,.12,.78]) {
+      const thin = new THREE.Mesh(new THREE.TorusGeometry(.412,.006,5,48),brushed);
+      thin.rotation.x=Math.PI/2;
+      thin.position.y=y;
+      missile.add(thin);
+    }
+    for(let i=0;i<9;i++) {
+      const angle=i*2*Math.PI/9;
+      const mark=new THREE.Mesh(new THREE.BoxGeometry(.012,.065,.013),brushed);
+      mark.position.set(Math.sin(angle)*.413,-.69,Math.cos(angle)*.413);
+      missile.add(mark);
+    }
     scene.add(missile);
 
     const dotCount = lowDetail ? 18 : 42;
@@ -343,6 +437,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       // In addition to materials, WebGL textures must be explicitly destroyed.
       hazardTexture.dispose();
       stencilTexture.dispose();
+      steelTexture.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
