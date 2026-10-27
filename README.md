@@ -56,6 +56,21 @@ When **Operations → Coding** is selected, ARRAY sends `operationsMode: "coding
 
 Twelve slots are UI identities, not a promise of twelve concurrent hosted model processes. The current mission server still limits actual concurrency to two jobs.
 
+
+## Three.js launch bay
+
+The Launch Array has a decorative WebGL scene built with Three.js (`src/components/LaunchSilo3D.tsx`):
+- An abstract signal pod appears from a circular bay while two hatch doors open outward.
+- Animated lighting, emissive rail details, a procedural particle trail, and a camera shift accompany the scene.
+- **PREVIEW** replays the choreography without contacting RAVIN or executing an agent.
+- For live missions, the visual sequence starts only after the authenticated RAVIN API accepts the task. The animation is illustrative and does not measure inference progress.
+- For demo missions, the preview plays while the original simulation is clearly labeled.
+- Reduced-motion users receive a static open hatch pose without exhaust or flight animation.
+- Rendering pauses off-screen or when the tab is hidden; renderer/scene resources are disposed on unmount. Browsers without WebGL receive a CSS fallback.
+- Uses bundled Three.js, no third-party 3D asset downloads and no external WebGL scripts.
+
+This is a UI metaphor for sending a software task. It has no physical vehicle control, launch hardware integration, or weapon functionality.
+
 ## 3. Core experience / user journey
 
 1. Open ARRAY: all four arrays are visible, with central RAVIN Core orb.
