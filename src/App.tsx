@@ -119,20 +119,20 @@ function ArrayCanvas({
 }) {
   return (
     <div className="array-canvas array-canvas--dual">
-      <div className="canvas-coordinates top-left">00.00° N / SYSTEM 01</div>
-      <div className="canvas-coordinates top-right">RAVIN CORE LINK : READY</div>
+      <div className="canvas-coordinates top-left">SECTOR 06 / ARRAY CONTROL</div>
+      <div className="canvas-coordinates top-right">SOFTWARE LINK / CONTROL CHANNEL</div>
       <div className="canvas-crosshair horizontal" aria-hidden="true" />
       <div className="canvas-crosshair vertical" aria-hidden="true" />
-      <div className="silo-stage" aria-label="Illustrative 3D launch bay">
-        <div className="silo-stage-topline"><span>RAVIN / SIGNAL BAY</span><span>3D / LIVE RENDER</span></div>
+      <div className="silo-stage" aria-label="Fictional military-industrial 3D launch-bay illustration">
+        <div className="silo-stage-topline"><span>VAULT 06 // DISPLAY UNIT</span><span>☢ RADIOLOGICAL SYMBOL</span></div>
         <LaunchSilo3D launchSignal={launchSignal} />
         <div className="silo-stage-bottomline">
           <span className={launchPlaying ? 'silo-stage-state active' : 'silo-stage-state'}>
             <span className="silo-stage-light" />
-            {launchPlaying ? 'VISUAL SEQUENCE' : 'HATCHES SECURED'}
+            {launchPlaying ? 'ILLUSTRATIVE SEQUENCE' : 'INSPECTION / STANDBY'}
           </span>
           <button type="button" className="silo-stage-preview" onClick={onPreview} aria-label="Preview a 3D launch animation without starting a mission">
-            <Play size={11} /> PREVIEW
+            <Play size={11} /> PLAY SEQUENCE
           </button>
         </div>
       </div>
@@ -151,7 +151,7 @@ function ArrayCanvas({
       </div>
       <CoreNode />
       <div className="canvas-coordinates bottom-left">12 AGENTS / 02 ARRAYS</div>
-      <div className="canvas-coordinates bottom-right">SELECT UNIT TO CONFIGURE <ArrowDownRight size={12} /></div>
+      <div className="canvas-coordinates bottom-right">SELECT SOFTWARE WORKER <ArrowDownRight size={12} /></div>
     </div>
   );
 }
@@ -193,7 +193,7 @@ function CommandDeck({
             </button>
           ))}
         </div>
-        <span className="deck-status"><span className="live-dot" /> ALL SYSTEMS STANDBY</span>
+        <span className="deck-status"><span className="live-dot" /> SOFTWARE NETWORK READY</span>
       </div>
       <div className="deck-main">
         <div className="selected-agent">
@@ -255,7 +255,7 @@ function CommandDeck({
             disabled={!objective.trim() || Boolean(launchedAgentId) || launchPending}
             onClick={onLaunch}
           >
-            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'START LIVE MISSION' : 'LAUNCH DEMO AGENT'}</span>
+            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'DISPATCH TASK' : 'START DEMO TASK'}</span>
             {launchedAgentId ? <Activity size={18} /> : <ArrowUpRight size={20} />}
           </button>
         </div>
@@ -592,8 +592,8 @@ export default function App() {
       </header>
       <main id="top" className="main-content">
         <div className="intro-row">
-          <div><div className="section-kicker"><span className="section-kicker-line" /> INTELLIGENCE DEPLOYMENT SYSTEM <span className="alpha-index">/ 001</span></div><h1>RAVIN <span>ARRAY</span><span className="title-period">.</span></h1><p className="intro-tagline">Deploy intelligence. <span>Track every mission.</span></p></div>
-          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONAL ENVIRONMENT</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
+          <div><div className="section-kicker"><span className="section-kicker-line" /> MISSION CONTROL / SIMULATED INTERFACE <span className="alpha-index">/ 001</span></div><h1>RAVIN <span>ARRAY</span><span className="title-period">.</span></h1><p className="intro-tagline">Task command interface. <span>Coordinate the RAVIN network.</span></p></div>
+          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
           <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
@@ -612,7 +612,7 @@ export default function App() {
         </div>
         {view === 'array' ? (
           <>
-            <div className="canvas-labels"><span><Compass size={14} /> THE DEPLOYMENT FIELD</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
+            <div className="canvas-labels"><span><Compass size={14} /> SOFTWARE DEPLOYMENT ARRAY</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
             <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
           </>
