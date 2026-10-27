@@ -11,6 +11,7 @@ import {
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
+import { missionEvents, missionStatus } from './engine/missionEvents';
 import LaunchSilo3D from './components/LaunchSilo3D';
 import { SILO_SEQUENCE_MS } from './engine/siloAnimation';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
@@ -158,7 +159,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode,
+  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode, instructions, setInstructions,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -173,6 +174,8 @@ function CommandDeck({
   liveMode: boolean;
   operationsMode: OperationsMode;
   setOperationsMode: (value: OperationsMode) => void;
+  instructions: string;
+  setInstructions: (value: string) => void;
 }) {
   const activeModel = modelForSelection(selectedCategory, operationsMode);
   return (
@@ -235,20 +238,29 @@ function CommandDeck({
           </div>
         </div>
         <div className="deployment-controls">
-          <label className="eyebrow" htmlFor="execution-policy">04 / EXECUTION POLICY</label>
-          <div className="select-wrap">
-            <ShieldCheck size={16} />
-            <select
-              id="execution-policy"
-              value={policy}
-              onChange={(event) => setPolicy(event.target.value as ExecutionPolicy)}
-            >
-              <option value="review">Review first</option>
-              <option value="assist">Assist only</option>
-              <option value="authorized" disabled={liveMode}>Authorized (future)</option>
-            </select>
+          <span className="eyebrow">04 / EXECUTION POLICY</span>
+          <div className="execution-policy-options" role="group" aria-label="Execution policy">
+            <button type="button" className={policy === 'review' ? 'selected' : ''}
+              aria-pressed={policy === 'review'} onClick={() => setPolicy('review')}>
+              <ShieldCheck size={16}/><span><strong>REVIEW FIRST</strong><small>Draft + verification checklist</small></span>
+            </button>
+            <button type="button" className={policy === 'assist' ? 'selected' : ''}
+              aria-pressed={policy === 'assist'} onClick={() => setPolicy('assist')}>
+              <Check size={16}/><span><strong>ASSIST ONLY</strong><small>Direct answer, text only</small></span>
+            </button>
           </div>
-          <p>{liveMode ? 'Text-only RAVIN mission. Coding creates reviewable code text, not repository changes.' : 'Preview only. No real tools or permissions are connected.'}</p>
+          <p className="policy-explanation">{policy === 'review'
+            ? 'Agent drafts the result, identifies assumptions and risks, and lists checks for your approval. Nothing is executed.'
+            : 'Agent supplies explanations, examples, or code as text. It cannot run commands, edit files, publish or purchase.'}</p>
+          <label className="eyebrow policy-extra-label" htmlFor="agent-instructions">05 / RESPONSE INSTRUCTIONS <span>OPTIONAL</span></label>
+          <textarea id="agent-instructions" className="agent-instructions"
+            value={instructions} onChange={event => setInstructions(event.target.value)}
+            maxLength={400} rows={3}
+            placeholder="Output format, constraints, acceptance criteria..." />
+          <span className="instruction-length">{instructions.length} / 400 · Preferences cannot grant tools or permissions</span>
+          <p className="policy-permission"><ShieldCheck size={13}/> {liveMode
+            ? 'SERVER ENFORCED · No external actions available'
+            : 'DEMO ONLY · No model execution or external actions'}</p>
           <button
             className="launch-button"
             type="button"
@@ -269,12 +281,12 @@ function MissionCard({ mission, now, selected, onSelect }: { mission: Mission; n
   return (
     <button type="button" className={`mission-card ${selected ? 'is-selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
       <div className="mission-card-head">
-        <span className="mission-code">{mission.agentId.toUpperCase()} / {mission.isDemo ? 'SIM' : 'LIVE'}</span>
-        <span className={`mission-phase phase--${mission.phase}`}><span className="status-pin" /> {phaseLabel(mission.phase)}</span>
+        <span className="mission-code">{mission.agentId.toUpperCase()} / {mission.isDemo ? 'SIMULATION' : 'SERVER'}</span>
+        <span className={`mission-phase phase--${mission.phase}`}><span className="status-pin" /> {missionStatus(mission)}</span>
       </div>
       <strong>{mission.agentName}</strong>
       <p>{mission.objective}</p>
-      <div className="mission-card-foot"><span><Clock3 size={12} /> {formatDuration((mission.finishedAt ?? now) - mission.createdAt)}</span><span>VIEW PATH <ArrowUpRight size={12}/></span></div>
+      <div className="mission-card-foot"><span><Clock3 size={12} /> {formatDuration((mission.finishedAt ?? now) - mission.createdAt)}</span><span>VIEW RECORD <ArrowUpRight size={12}/></span></div>
     </button>
   );
 }
@@ -284,7 +296,7 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
     <aside className="mission-inspector empty-inspector">
       <span className="eyebrow">MISSION INSPECTOR</span>
       <Radar size={34} strokeWidth={1} />
-      <p>Select a mission to inspect its status, launch details, and available results.</p>
+      <p>Select a recorded software mission to inspect verified timestamps, execution policy, and results.</p>
     </aside>
   );
   const elapsed = (mission.finishedAt ?? now) - mission.createdAt;
@@ -292,7 +304,7 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
   const active = isActiveMission(mission.phase);
   return (
     <aside className="mission-inspector" aria-label="Selected mission details">
-      <span className="eyebrow">MISSION INSPECTOR / {mission.isDemo ? "SIMULATION" : "LIVE RAVIN"}</span>
+      <span className="eyebrow">MISSION DOSSIER / {mission.isDemo ? "SIMULATION" : "LIVE RAVIN"}</span>
       <div className="inspector-top"><div className="inspector-symbol"><Crosshair size={24} /></div><span className="inspector-id">{mission.id.slice(-9)}</span></div>
       <h3>{mission.agentName}</h3>
       <div className="inspector-phase"><span className="status-pin" /> {phaseLabel(mission.phase)}</div>
@@ -303,11 +315,12 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
       </div>
       <p className="inspector-disclaimer"><CircleDot size={13} /> {mission.isDemo ? 'This is an illustrative countdown, not a prediction of AI completion time.' : 'Server status is real. Trajectory is illustrative; there is no reliable ETA.'}</p>
       <div className="inspector-section"><span className="eyebrow">MISSION SETTINGS</span>
-        <div className="inspector-detail"><span>Policy</span><strong>{mission.policy === 'review' ? 'Review first' : mission.policy === 'assist' ? 'Assist only' : 'Authorized (future)'}</strong></div>
+        <div className="inspector-detail"><span>Policy</span><strong>{mission.policy === 'review' ? 'Review first · draft + checks' : mission.policy === 'assist' ? 'Assist only · text output' : 'Unsupported legacy policy'}</strong></div>
+        {mission.instructions && <div className="inspector-instructions"><span className="eyebrow">ADDITIONAL RESPONSE INSTRUCTIONS</span><p>{mission.instructions}</p></div>}
         <div className="inspector-detail"><span>Engine</span><strong>{mission.isDemo ? 'Local simulator' : 'RAVIN / tool-free AI'}</strong></div>
         {mission.model && <div className="inspector-detail"><span>Model</span><strong>{mission.model}</strong></div>}
         {mission.operationsMode === 'coding' && <div className="inspector-detail"><span>Operations mode</span><strong>Coding, text-only</strong></div>}
-        <div className="inspector-detail"><span>Output</span><strong>{mission.isDemo ? 'Not generated' : mission.output ? 'Available' : 'Waiting'}</strong></div>
+        <div className="inspector-detail"><span>Output</span><strong>{mission.isDemo ? 'None · simulation' : mission.output ? 'Text result received' : 'Not received yet'}</strong></div>
       </div>
       {mission.output && <div className="inspector-section"><span className="eyebrow">RAVIN RESULT / TEXT OUTPUT</span><pre className="mission-output">{mission.output}</pre></div>}
       {mission.error && <div className="mission-error" role="alert">{mission.error}</div>}
@@ -329,24 +342,46 @@ function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, o
   onTestLaunch: () => void;
 }) {
   const selected = missions.find((mission) => mission.id === selectedMissionId) ?? missions[0];
+  const liveCount = missions.filter(m => !m.isDemo).length;
+  const completedCount = missions.filter(m => m.phase === 'succeeded' && !m.isDemo).length;
+  const runningCount = missions.filter(m => isActiveMission(m.phase)).length;
+  const auditEntries = missions.flatMap(mission => missionEvents(mission).map(event => ({ ...event, agentName:mission.agentName, missionId:mission.id })))
+    .sort((a,b) => b.time - a.time).slice(0,16);
   return (
     <div className="monitor-layout">
       <div className="monitor-primary">
         <div className="monitor-head">
-          <div><span className="eyebrow">OPERATIONS / 02</span><h2>Flight monitor<span className="title-period">.</span></h2><p>Every mission has a path. Follow the sequence.</p></div>
+          <div><span className="eyebrow">ARRAY / MISSION OPERATIONS</span><h2>Mission control<span className="title-period">.</span></h2><p>Verified task states, recorded events and illustrative route visualization.</p></div>
           <div className="monitor-header-actions">
             <button type="button" className="test-launch-button" onClick={onTestLaunch} title="Launch a simulated test vector without connecting a real agent">
-              <Play size={15} fill="currentColor" /> TEST LAUNCH <span>SIM</span>
+              <Play size={15} fill="currentColor" /> RUN DEMO <span>SIM</span>
             </button>
             <button type="button" className="quiet-action" onClick={onGoToArray}><ArrowLeft size={15}/> BACK TO ARRAY</button>
           </div>
         </div>
-        <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
-        <GroveWorkerPanel />
-        <div className="mission-list-title"><span>MISSION LOG <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></span><span>NEWEST FIRST</span></div>
-        <div className="mission-list">
-          {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> The flight log is empty. Use Test Launch above to fire a visual diagnostic, or deploy an agent.</div>}
+        <div className="monitor-summary" aria-label="Recorded mission summary">
+          <div><span>RECORDED TASKS</span><strong>{missions.length.toString().padStart(2, '0')}</strong><small>Local and server records</small></div>
+          <div><span>ACTIVE</span><strong>{runningCount.toString().padStart(2, '0')}</strong><small>Reported current states</small></div>
+          <div><span>LIVE REQUESTS</span><strong>{liveCount.toString().padStart(2, '0')}</strong><small>Not simulated</small></div>
+          <div><span>LIVE COMPLETED</span><strong>{completedCount.toString().padStart(2, '0')}</strong><small>Server confirmed</small></div>
         </div>
+        <div className="monitor-section-head"><strong>MISSION NETWORK</strong><span>SYMBOLIC ROUTES · NOT LOCATION OR TIMING DATA</span></div>
+        <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
+        <div className="monitor-section-head monitor-log-head"><strong>MISSION REGISTER <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></strong><span>RECENT REQUESTS · NEWEST FIRST</span></div>
+        <div className="mission-list">
+          {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> No missions recorded. Run a labeled demo or dispatch a software task to populate the register.</div>}
+        </div>
+        <div className="monitor-section-head monitor-audit-head"><strong>EVENT AUDIT</strong><span>RECORDED STATE TRANSITIONS ONLY</span></div>
+        <div className="mission-audit" aria-label="Recorded mission events">
+          {auditEntries.length ? auditEntries.map(event =>
+            <button type="button" className="audit-entry" key={event.key} onClick={() => setSelectedMissionId(event.missionId)}>
+              <time dateTime={new Date(event.time).toISOString()}>{new Date(event.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time>
+              <span className={event.source === 'simulation' ? 'audit-indicator simulation' : 'audit-indicator'} />
+              <span className="audit-entry-main"><strong>{event.label}</strong><small>{event.agentName} / {event.detail}</small></span>
+              <span className="audit-source">{event.source === 'simulation' ? 'SIM' : 'API'}</span>
+            </button>) : <div className="empty-log">No event records. Nothing has been launched.</div>}
+        </div>
+        <GroveWorkerPanel />
       </div>
       <MissionInspector mission={selected} now={now} onCancel={onCancel} />
     </div>
@@ -359,6 +394,7 @@ export default function App() {
   const [operationsMode, setOperationsMode] = useState<OperationsMode>('general');
   const [objective, setObjective] = useState('');
   const [policy, setPolicy] = useState<ExecutionPolicy>('review');
+  const [instructions, setInstructions] = useState('');
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
@@ -467,12 +503,13 @@ export default function App() {
     if (liveMode) {
       setLaunchPending(true);
       try {
-        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general');
+        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general', instructions);
         setLaunchedAgentId(selectedAgent.id);
         setMissions(previous => [mission, ...previous].slice(0,50));
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
         setObjective('');
+        setInstructions('');
         setNotice(`${selectedAgent.name} submitted to live RAVIN using ${mission.model || 'server-selected model'}. Symbolic launch playing.`);
         previewSilo();
       } catch(error) {
@@ -490,6 +527,7 @@ export default function App() {
       objective,
       policy,
     });
+    mission.instructions = instructions.trim();
     mission.operationsMode = selectedCategory === 'operations' ? operationsMode : 'general';
     mission.model = modelForSelection(selectedCategory, operationsMode).id;
     setMissions(previous => [mission, ...previous].slice(0,50));
@@ -498,6 +536,7 @@ export default function App() {
     setLaunchedAgentId(selectedAgent.id);
     previewSilo();
     setObjective('');
+    setInstructions('');
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
 
@@ -614,7 +653,7 @@ export default function App() {
           <>
             <div className="canvas-labels"><span><Compass size={14} /> SOFTWARE DEPLOYMENT ARRAY</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
+            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>

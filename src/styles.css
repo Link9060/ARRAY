@@ -992,3 +992,200 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 @media(prefers-reduced-motion:reduce) {
   .silo-stage-state.active .silo-stage-light {animation:none;}
 }
+
+
+/* ARRAY production-oriented command interface refinement: functional hierarchy first. */
+:root { --ops-surface:#141914;--ops-deep:#0d130e;--ops-border:#58624a;--ops-green:#acbda0;--ops-amber:#dbc180; }
+.command-deck .deck-main {grid-template-columns:minmax(230px,.88fr) minmax(320px,1.55fr) minmax(285px,1.1fr);}
+.command-deck .deployment-controls {display:flex;flex-direction:column;align-items:stretch;gap:0;}
+.execution-policy-options {display:grid;grid-template-columns:1fr;gap:7px;margin-top:15px;}
+.execution-policy-options button {
+  min-height:54px;display:flex;align-items:center;gap:11px;text-align:left;
+  padding:10px 12px;border:1px solid #475140;background:#111710;color:#a9b5a5;
+  border-radius:2px;font-family:var(--mono);transition:border-color .15s,background .15s;
+}
+.execution-policy-options button svg {flex-shrink:0;color:#84947c;}
+.execution-policy-options button span {display:flex;flex-direction:column;gap:5px;min-width:0;}
+.execution-policy-options button strong {font-size:10px;letter-spacing:.06em;font-weight:700;}
+.execution-policy-options button small {font-size:9px;line-height:1.3;color:#8e9e8a;}
+.execution-policy-options button.selected {background:#30392a;border-color:#a8ae7a;color:#f5f0d8;box-shadow:inset 3px 0 #cdb675;}
+.execution-policy-options button.selected svg {color:#d8c27e;}
+.execution-policy-options button:focus-visible {outline-offset:2px;}
+.deployment-controls .policy-explanation {color:#c7cebd;margin:11px 0 16px;min-height:53px;font-size:10px;line-height:1.55;}
+.policy-extra-label {display:flex;justify-content:space-between;align-items:center;gap:7px;margin-bottom:8px;}
+.policy-extra-label span {font-size:8px;color:#8d987e;font-weight:500;}
+.agent-instructions {
+  min-height:77px;max-height:150px;resize:vertical;background:#0f140f;color:#d8dfcc;
+  border:1px solid #4b5847;border-radius:2px;padding:11px 12px;
+  font-size:11px;line-height:1.55;width:100%;
+}
+.agent-instructions::placeholder {color:#879282;}
+.agent-instructions:focus {outline:2px solid #b8ab75;outline-offset:1px;}
+.instruction-length {font:9px var(--mono);color:#91a08f;margin-top:8px;line-height:1.4;}
+.deployment-controls .policy-permission {
+  display:flex;align-items:flex-start;gap:7px;color:#c4be93;
+  font:9px/1.5 var(--mono);margin:14px 0 18px;
+}
+.policy-permission svg {flex-shrink:0;margin-top:1px;}
+.deployment-controls .launch-button {margin-top:auto;min-height:52px;}
+
+/* Mission monitor: a legible operations dashboard, not a decorative flight game. */
+.monitor-layout {grid-template-columns:minmax(0,1fr) minmax(300px,355px);gap:16px;align-items:start;}
+.monitor-primary {display:flex;flex-direction:column;gap:0;}
+.monitor-head {min-height:106px;margin-bottom:12px;}
+.monitor-head h2 {
+  font-family:'Arial Narrow','Bahnschrift Condensed',Impact,sans-serif;
+  font-size:clamp(33px,3vw,49px);font-weight:800;letter-spacing:.035em;text-transform:uppercase;
+  color:#e7e9d9;margin:8px 0 7px;
+}
+.monitor-head h2 .title-period {color:#d0bc7a;}
+.monitor-head p {color:#aab59f;font:11px/1.55 var(--mono);max-width:520px;}
+.monitor-header-actions {align-items:center;}
+.monitor-header-actions button {font-weight:700;border-radius:2px;}
+.test-launch-button {background:#3b422c;border:1px solid #a3a475;color:#eee2b6;box-shadow:none;}
+.test-launch-button:hover {background:#505b3c;box-shadow:none;}
+.test-launch-button span {color:#dfc77f;border-color:#7e7e5c;}
+.quiet-action {background:#1c231c;border-color:#596652;color:#cbd5c6;}
+.quiet-action:hover {background:#34432e;color:#f0f1e0;}
+.monitor-summary {
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  border:1px solid #5a6651;background:#171e17;margin-bottom:17px;
+}
+.monitor-summary > div {
+  padding:13px 13px 12px;min-width:0;display:flex;flex-direction:column;gap:6px;
+  border-right:1px solid #4c5847;
+}
+.monitor-summary > div:last-child {border-right:0;}
+.monitor-summary span {color:#c1c9b7;font:9px/1.4 var(--mono);letter-spacing:.07em;}
+.monitor-summary strong {font:26px/1.12 var(--mono);font-weight:700;color:#ebe9d5;letter-spacing:.04em;}
+.monitor-summary small {font:8px/1.35 var(--mono);color:#879683;}
+.monitor-summary > div:nth-child(2) strong {color:#cdbb82;}
+.monitor-section-head {
+  min-height:36px;background:#242c21;border:1px solid #58634e;
+  border-bottom:0;display:flex;align-items:center;justify-content:space-between;
+  gap:9px;padding:8px 12px;color:#e2e6d7;font:10px var(--mono);
+  letter-spacing:.09em;
+}
+.monitor-section-head > span {color:#aab79d;font-size:8px;text-align:right;}
+.monitor-log-head,.monitor-audit-head {margin-top:19px;}
+.monitor-section-head .muted {color:#a6b39e;}
+.trajectory-map.globe-monitor {
+  border-radius:0;border:1px solid #596850;
+  background:radial-gradient(ellipse at center,#252f22 0%,#121c15 61%,#0b140e 100%);
+  box-shadow:inset 0 0 0 4px #0d150c;
+  height:440px;min-height:390px;
+}
+.globe-monitor-canvas {filter:saturate(.52) sepia(.55) hue-rotate(18deg);}
+.globe-monitor .map-topline {color:#c4cdad;}
+.globe-monitor .map-topline span:last-child {color:#aeb8a4;}
+.globe-monitor .map-bottomline {color:#9cac91;}
+.globe-controls button {
+  background:#1a271bbf;border-color:#5a6d53;color:#d6dec6;border-radius:2px;
+  backdrop-filter:blur(4px);
+}
+.globe-controls button:hover:not(:disabled) {background:#30412f;color:#fff4d9;}
+.globe-controls button[aria-pressed="true"] {border-color:#c3b27d;color:#f0e4bc;}
+.globe-empty strong {color:#d6dcbf;}
+.globe-empty span {color:#adb7a0;}
+.globe-legend {color:#b2bca6;}
+.globe-legend i {background:#bdc8a6;box-shadow:none;}
+.globe-legend span:nth-child(2) i {background:#c7b87c;}
+.globe-legend span:nth-child(3) i {background:#a7ba8e;}
+.mission-list {
+  border:1px solid #596650;border-top:0;
+  display:flex;flex-direction:column;gap:0;background:#101710;
+}
+.mission-card {
+  display:grid;grid-template-columns:1fr auto;gap:7px 15px;
+  width:100%;border:0;border-radius:0;border-bottom:1px solid #354233;
+  padding:15px 17px;background:#111a12;
+}
+.mission-card:last-child {border-bottom:0;}
+.mission-card:hover,.mission-card.is-selected {background:#293529;outline-offset:-2px;border-color:#586e51;}
+.mission-card.is-selected {box-shadow:inset 3px 0 #d0b878;}
+.mission-card-head {grid-column:1/-1;}
+.mission-code {color:#c6cdaa;letter-spacing:.06em;font-size:9px;}
+.mission-phase {color:#d1d3b8;font-size:9px;letter-spacing:.03em;}
+.mission-card strong {font:600 15px var(--mono);margin:1px 0 0;color:#edeedf;}
+.mission-card p {grid-column:1/-1;color:#a9b6a4;min-height:0;margin:0 0 2px;font-size:11px;line-height:1.5;}
+.mission-card-foot {grid-column:1/-1;border-top:0;padding:2px 0 0;color:#9eae96;font-size:9px;}
+.empty-log {padding:18px;background:#141c13;color:#adbb9f;border:0;border-radius:0;font:11px/1.6 var(--mono);}
+.mission-audit {
+  background:#0f160f;border:1px solid #5a6650;border-top:0;display:flex;flex-direction:column;
+  max-height:460px;overflow:auto;
+}
+.audit-entry {
+  width:100%;border:0;border-bottom:1px solid #313c30;
+  background:#121a12;color:#d9dfcd;text-align:left;
+  display:grid;grid-template-columns:85px 8px 1fr 38px;align-items:center;
+  gap:12px;padding:12px 14px;
+}
+.audit-entry:last-child {border-bottom:0;}
+.audit-entry:hover,.audit-entry:focus-visible {background:#293528;}
+.audit-entry time {color:#b0bda9;font:10px var(--mono);font-variant-numeric:tabular-nums;}
+.audit-indicator {width:7px;height:7px;background:#94b08d;box-shadow:0 0 0 3px #94b08d15;}
+.audit-indicator.simulation {background:#c4aa6d;box-shadow:0 0 0 3px #c4aa6d1b;}
+.audit-entry-main {min-width:0;display:flex;flex-direction:column;gap:5px;}
+.audit-entry-main strong {font:600 11px var(--mono);color:#e7e8d8;}
+.audit-entry-main small {font:10px/1.5 var(--mono);color:#adb9a6;}
+.audit-source {font:8px var(--mono);text-align:right;color:#b1ba95;}
+.mission-inspector {
+  margin-top:122px;min-height:540px;position:sticky;top:18px;
+  border:1px solid #5c674e;border-top:3px solid #afa071;
+  background:linear-gradient(160deg,#1c241b,#121813);
+  border-radius:0;padding:22px;
+}
+.mission-inspector .eyebrow {color:#c5c9aa;}
+.mission-inspector h3 {font:700 22px var(--mono);letter-spacing:-.035em;}
+.inspector-id {color:#a9b69f;}
+.inspector-phase {color:#d7c597;}
+.inspector-detail {border-bottom:1px solid #354331;padding-bottom:10px;margin-top:12px;}
+.inspector-detail strong {color:#e3e5cc;overflow-wrap:anywhere;}
+.inspector-instructions {border-top:1px solid #47543f;margin-top:16px;padding-top:12px;}
+.inspector-instructions p {font:11px/1.65 var(--mono);color:#b9c7af;overflow-wrap:anywhere;}
+.inspector-metrics > div {border-radius:0;border-color:#59684c;background:#182117;}
+.inspector-metrics strong {color:#ede9d4;}
+.inspector-disclaimer {color:#b4bea9;}
+.mission-output {background:#0e160e;border-color:#5b6a52;color:#d8e4d1;border-radius:0;}
+.secondary-action {border-radius:0;border-color:#607358;background:#243322;color:#e5ebd6;}
+.secondary-action:hover {background:#354b2f;}
+.grove-worker-panel {
+  background:#151f16;border:1px solid #58664f;border-radius:0;margin-top:20px;
+}
+.grove-worker-head h3 {color:#e4e9d7;}
+.grove-worker-head h3 svg {color:#c6c195;}
+.grove-worker-description {color:#aab9a5;}
+.grove-worker-run,.grove-review-entry {background:#172318;border-color:#4d604c;border-radius:2px;}
+.grove-worker-run:hover,.grove-review-entry:hover {background:#293c28;border-color:#8a9f79;}
+.grove-worker-meta strong,.grove-review-entry strong {color:#e0e5d5;}
+.grove-worker-result {color:#a7b99b;}
+.grove-worker-foot,.grove-worker-meta small {color:#acbca7;}
+@media(max-width:1250px) {
+  .command-deck .deck-main {grid-template-columns:1fr 1.3fr;}
+  .command-deck .deployment-controls {grid-column:1/-1;border-top:1px solid #4b5a49;display:flex;}
+  .execution-policy-options {grid-template-columns:1fr 1fr;}
+  .deployment-controls .policy-explanation {min-height:0;}
+}
+@media(max-width:980px) {
+  .monitor-layout {grid-template-columns:1fr;}
+  .mission-inspector {position:static;margin-top:0;min-height:0;}
+  .monitor-summary {grid-template-columns:repeat(4,minmax(0,1fr));}
+}
+@media(max-width:730px) {
+  .command-deck .deck-main {display:flex;flex-direction:column;}
+  .command-deck .selected-agent,.command-deck .mission-input,.command-deck .deployment-controls {width:100%;border-right:0;}
+  .command-deck .deployment-controls {border-top:0;}
+  .execution-policy-options {grid-template-columns:1fr;}
+  .monitor-head {min-height:0;}
+  .monitor-summary {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .monitor-summary > div:nth-child(2) {border-right:0;}
+  .monitor-summary > div:nth-child(-n+2) {border-bottom:1px solid #4c5847;}
+  .monitor-section-head {flex-wrap:wrap;}
+  .trajectory-map.globe-monitor {height:360px;min-height:340px;}
+}
+@media(max-width:480px) {
+  .audit-entry {grid-template-columns:70px 6px 1fr 25px;gap:7px;padding:11px 9px;}
+  .audit-entry time {font-size:8px;}
+  .audit-entry-main small {font-size:9px;}
+  .monitor-summary strong {font-size:22px;}
+}

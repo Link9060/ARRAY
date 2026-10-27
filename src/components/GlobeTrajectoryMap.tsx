@@ -298,18 +298,18 @@ export default function GlobeTrajectoryMap({ missions, selectedMissionId, onSele
   }
   return (
     <div className="trajectory-map globe-monitor" ref={shellRef}>
-      <div className="map-topline"><span>ORBITAL FLIGHT MONITOR</span><span>PARTICLE GLOBE / ABSTRACT FLIGHT PATHS <Radio size={13}/></span></div>
+      <div className="map-topline"><span>SOFTWARE TASK NETWORK</span><span>ABSTRACT TASK LINKS / NO LOCATION DATA <Radio size={13}/></span></div>
       <div className="globe-controls" role="group" aria-label="Globe controls">
         <button type="button" onClick={() => setPaused(value => !value)} aria-pressed={paused} title={paused ? 'Resume globe rotation' : 'Pause globe rotation'}>{paused ? <Play size={13}/> : <Pause size={13}/>} {paused ? 'RESUME' : 'PAUSE'}</button>
         <button type="button" disabled={!missions.length} onClick={focusSelected} title="Rotate globe to selected mission's launch point"><Crosshair size={13}/> FOCUS MISSION</button>
       </div>
       <canvas ref={canvasRef} aria-label="Rotating ARROW Orbit particle globe with abstract demo and real mission status paths. Drag to rotate. Mission list below provides keyboard access." role="img" className="globe-monitor-canvas" />
       {missions.length===0 && <div className="globe-empty">
-        <strong>NO MISSIONS IN FLIGHT</strong>
-        <span>Run a TEST LAUNCH to preview a flight vector.</span>
+        <strong>NO TASKS RECORDED</strong>
+        <span>Run a DEMO to preview symbolic task paths.</span>
       </div>}
-      <div className="globe-legend" aria-hidden="true"><span><i/> LAUNCH</span><span><i/> FLIGHT PATH</span><span><i/> ARRIVAL</span></div>
-      <div className="map-bottomline"><span>DRAG TO ROTATE / ORBIT-STYLE PARTICLE ENGINE</span><span>ABSTRACT MISSIONS / NO LIVE TELEMETRY</span></div>
+      <div className="globe-legend" aria-hidden="true"><span><i/> CREATED</span><span><i/> ROUTE</span><span><i/> COMPLETED</span></div>
+      <div className="map-bottomline"><span>DRAG TO ROTATE / VISUALIZATION ONLY</span><span>STATE FROM API / ROUTES ARE SIMULATED</span></div>
     </div>
   );
 }

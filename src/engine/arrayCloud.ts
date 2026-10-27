@@ -60,6 +60,7 @@ function parseMission(data: unknown): Mission | null {
     id: m.id, agentId: m.agentId, agentName: m.agentName, category: m.category,
     objective: m.objective, createdAt: m.createdAt, isDemo: m.isDemo,
     policy: m.policy!, phase: m.phase!,
+    ...(typeof m.instructions === 'string' && m.instructions.length <= 400 ? { instructions: m.instructions } : {}),
     ...(m.operationsMode === 'general' || m.operationsMode === 'coding' ? { operationsMode: m.operationsMode } : {}),
     ...(typeof m.model === 'string' && m.model.length < 140 ? { model: m.model } : {}),
     ...(typeof m.startedAt === 'number' ? { startedAt: m.startedAt } : {}),
