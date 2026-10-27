@@ -11,6 +11,7 @@ import {
   type ExecutionPolicy, type Mission,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
+import { missionEvents, missionStatus } from './engine/missionEvents';
 import LaunchSilo3D from './components/LaunchSilo3D';
 import { SILO_SEQUENCE_MS } from './engine/siloAnimation';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
@@ -158,7 +159,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode,
+  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode, instructions, setInstructions,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -173,6 +174,8 @@ function CommandDeck({
   liveMode: boolean;
   operationsMode: OperationsMode;
   setOperationsMode: (value: OperationsMode) => void;
+  instructions: string;
+  setInstructions: (value: string) => void;
 }) {
   const activeModel = modelForSelection(selectedCategory, operationsMode);
   return (
@@ -235,20 +238,29 @@ function CommandDeck({
           </div>
         </div>
         <div className="deployment-controls">
-          <label className="eyebrow" htmlFor="execution-policy">04 / EXECUTION POLICY</label>
-          <div className="select-wrap">
-            <ShieldCheck size={16} />
-            <select
-              id="execution-policy"
-              value={policy}
-              onChange={(event) => setPolicy(event.target.value as ExecutionPolicy)}
-            >
-              <option value="review">Review first</option>
-              <option value="assist">Assist only</option>
-              <option value="authorized" disabled={liveMode}>Authorized (future)</option>
-            </select>
+          <span className="eyebrow">04 / EXECUTION POLICY</span>
+          <div className="execution-policy-options" role="group" aria-label="Execution policy">
+            <button type="button" className={policy === 'review' ? 'selected' : ''}
+              aria-pressed={policy === 'review'} onClick={() => setPolicy('review')}>
+              <ShieldCheck size={16}/><span><strong>REVIEW FIRST</strong><small>Draft + verification checklist</small></span>
+            </button>
+            <button type="button" className={policy === 'assist' ? 'selected' : ''}
+              aria-pressed={policy === 'assist'} onClick={() => setPolicy('assist')}>
+              <Check size={16}/><span><strong>ASSIST ONLY</strong><small>Direct answer, text only</small></span>
+            </button>
           </div>
-          <p>{liveMode ? 'Text-only RAVIN mission. Coding creates reviewable code text, not repository changes.' : 'Preview only. No real tools or permissions are connected.'}</p>
+          <p className="policy-explanation">{policy === 'review'
+            ? 'Agent drafts the result, identifies assumptions and risks, and lists checks for your approval. Nothing is executed.'
+            : 'Agent supplies explanations, examples, or code as text. It cannot run commands, edit files, publish or purchase.'}</p>
+          <label className="eyebrow policy-extra-label" htmlFor="agent-instructions">05 / RESPONSE INSTRUCTIONS <span>OPTIONAL</span></label>
+          <textarea id="agent-instructions" className="agent-instructions"
+            value={instructions} onChange={event => setInstructions(event.target.value)}
+            maxLength={400} rows={3}
+            placeholder="Output format, constraints, acceptance criteria..." />
+          <span className="instruction-length">{instructions.length} / 400 · Preferences cannot grant tools or permissions</span>
+          <p className="policy-permission"><ShieldCheck size={13}/> {liveMode
+            ? 'SERVER ENFORCED · No external actions available'
+            : 'DEMO ONLY · No model execution or external actions'}</p>
           <button
             className="launch-button"
             type="button"
@@ -359,6 +371,7 @@ export default function App() {
   const [operationsMode, setOperationsMode] = useState<OperationsMode>('general');
   const [objective, setObjective] = useState('');
   const [policy, setPolicy] = useState<ExecutionPolicy>('review');
+  const [instructions, setInstructions] = useState('');
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
@@ -467,12 +480,13 @@ export default function App() {
     if (liveMode) {
       setLaunchPending(true);
       try {
-        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general');
+        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general', instructions);
         setLaunchedAgentId(selectedAgent.id);
         setMissions(previous => [mission, ...previous].slice(0,50));
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
         setObjective('');
+        setInstructions('');
         setNotice(`${selectedAgent.name} submitted to live RAVIN using ${mission.model || 'server-selected model'}. Symbolic launch playing.`);
         previewSilo();
       } catch(error) {
@@ -490,6 +504,7 @@ export default function App() {
       objective,
       policy,
     });
+    mission.instructions = instructions.trim();
     mission.operationsMode = selectedCategory === 'operations' ? operationsMode : 'general';
     mission.model = modelForSelection(selectedCategory, operationsMode).id;
     setMissions(previous => [mission, ...previous].slice(0,50));
@@ -498,6 +513,7 @@ export default function App() {
     setLaunchedAgentId(selectedAgent.id);
     previewSilo();
     setObjective('');
+    setInstructions('');
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
 
@@ -614,7 +630,7 @@ export default function App() {
           <>
             <div className="canvas-labels"><span><Compass size={14} /> SOFTWARE DEPLOYMENT ARRAY</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
+            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
