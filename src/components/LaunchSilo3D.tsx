@@ -339,8 +339,43 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       mark.position.set(Math.sin(angle)*.413,-.69,Math.cos(angle)*.413);
       missile.add(mark);
     }
+    // The prop is longer and starts completely below the closed inspection deck.
+    // Clipping at deck level keeps hidden sections from unrealistically appearing
+    // through the solid platform as the animated silhouette emerges.
+    missile.scale.y = SILO_MODEL_SCALE_Y;
+    const deckClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SILO_DECK_Y);
+    missile.traverse(part => {
+      if (!(part instanceof THREE.Mesh)) return;
+      const original = Array.isArray(part.material) ? part.material : [part.material];
+      const clipped = original.map(material => {
+        const copy = material.clone();
+        copy.clippingPlanes = [deckClip];
+        copy.clipShadows = true;
+        return copy;
+      });
+      part.material = Array.isArray(part.material) ? clipped : clipped[0];
+    });
+    missile.position.y = siloModelY(siloPose(null));
+    missile.visible = false;
     scene.add(missile);
 
+    // A restrained layer of stationary atmospheric dust lends scale to the lit bay.
+    const dustCount = lowDetail ? 18 : 58;
+    const dustXYZ = new Float32Array(dustCount * 3);
+    for (let i=0; i<dustCount; i++) {
+      const angle=i*2.39996;
+      const radius=1.35+((i*17)%43)/43*3.1;
+      dustXYZ[3*i] = Math.cos(angle)*radius;
+      dustXYZ[3*i+1] = .25+((i*29)%61)/61*4;
+      dustXYZ[3*i+2] = Math.sin(angle)*radius;
+    }
+    const dustGeo=new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustXYZ, 3));
+    const dust=new THREE.Points(dustGeo, new THREE.PointsMaterial({
+      color:0xe4d6b6, size:.017, transparent:true,
+      opacity:lowDetail ? .13 : .24, depthWrite:false,
+    }));
+    scene.add(dust);
     const dotCount = lowDetail ? 18 : 42;
     const dots = new Float32Array(dotCount * 3);
     const dotGeometry = new THREE.BufferGeometry();
@@ -350,6 +385,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     particles.visible = false;
+    particles.material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0,1,0),-SILO_DECK_Y)];
     scene.add(particles);
 
     function resize() {
@@ -391,15 +427,15 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const elapsed = startedRef.current === null ? null : timestamp - startedRef.current;
       if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
       const pose = siloPose(elapsed, reduced);
-      hatchLeft.rotation.z = .91 + pose.hatch * .61;
-      hatchRight.rotation.z = -.91 - pose.hatch * .61;
-      // The inspection object remains visible while parked. Launch remains illustrative.
-      missile.position.y = -.18 + 7.6 * pose.ascent;
-      missile.rotation.y = Math.sin(timestamp * .00023) * .055;
-      missile.visible = pose.ascent < .95;
+      // Shut completely at rest. Open, reveal the rising prop, then re-seal.
+      hatchLeft.rotation.z = pose.hatch * 1.36;
+      hatchRight.rotation.z = -pose.hatch * 1.36;
+      missile.position.y = siloModelY(pose);
+      missile.rotation.y = Math.sin(timestamp * .00017) * .018;
+      missile.visible = siloModelVisible(pose) && pose.ascent < .96;
       exhaustMaterial.opacity = pose.thrust * .46;
       glow.scale.y = Math.max(.01, pose.thrust * (1.1 + .1 * Math.sin(timestamp * .03)));
-      particles.visible = pose.thrust > .1;
+      particles.visible = missile.visible && pose.thrust > .1;
       const positions = dotGeometry.attributes.position.array as Float32Array;
       for (let i = 0; i < dotCount; i++) {
         const v = (timestamp * .0012 + i * .061) % 1;
@@ -409,10 +445,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         positions[i * 3 + 2] = Math.sin(a) * (.05 + v * .25);
       }
       dotGeometry.attributes.position.needsUpdate = true;
-      bayLamp.intensity = 3 + pose.glow * 5;
+      bayLamp.intensity = 2.4 + pose.glow * 3.5;
       const sway = Math.sin(timestamp * .00017) * .09;
-      camera.position.set(3.35 + sway + pose.shake * Math.sin(timestamp * .1), 2.95 + pose.ascent * .3, 6.65);
-      camera.lookAt(0, .86 + pose.ascent * .8, 0);
+      camera.position.set(3.75 + sway + pose.shake * Math.sin(timestamp * .1), 3.15 + pose.ascent * 1.12, 7.25);
+      camera.lookAt(0, .65 + pose.ascent * 2.7, 0);
       renderer.render(scene, camera);
     }
 
