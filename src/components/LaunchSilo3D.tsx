@@ -136,9 +136,37 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     setAvailable(true);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x171a15, .045);
+    scene.fog = new THREE.FogExp2(0x080f12, .027);
     const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
-    scene.add(new THREE.HemisphereLight(0xb1c1b0, 0x17170f, .85));
+    scene.add(new THREE.HemisphereLight(0x607c92, 0x100f08, .78));
+    // Night backdrop: moonlit treeline, faint stars and distant hillside.
+    const starsPosition: number[] = [];
+    for (let i=0;i<115;i++) {
+      const angle=i*2.399963;
+      const x=Math.sin(angle)*(14+(i%7)*2);
+      const z=-16-(i%9)*2;
+      const y=5+((i*23)%67)/67*11;
+      starsPosition.push(x,y,z);
+    }
+    const starGeometry=new THREE.BufferGeometry();
+    starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starsPosition,3));
+    scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({
+      color:0xb9c9c5,size:.075,sizeAttenuation:true,opacity:.54,transparent:true,
+    })));
+    const darkTree = new THREE.MeshStandardMaterial({color:0x0d1c17,roughness:1});
+    const distantTree = new THREE.MeshStandardMaterial({color:0x142721,roughness:1});
+    for (let i=0;i<48;i++) {
+      const angle=i*2.399963;
+      const radius=11+(i%5)*2.2;
+      const x=Math.sin(angle)*radius, z=Math.cos(angle)*radius;
+      const h=3+(i*13%9)*.27;
+      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.08,.14,h*.36,5),darkTree);
+      trunk.position.set(x,h*.16,z);
+      scene.add(trunk);
+      const crown=new THREE.Mesh(new THREE.ConeGeometry(.68+(i%4)*.1,h,7),i%3===0?distantTree:darkTree);
+      crown.position.set(x,h*.65,z);
+      scene.add(crown);
+    }
     const key = new THREE.DirectionalLight(0xffeed1, 4.2);
     key.position.set(-3.5, 7.8, 3.8);
     if (!lowDetail) {
@@ -156,7 +184,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const fill = new THREE.DirectionalLight(0x9caf9e, 1.18);
     fill.position.set(3.2, 3.5, -4.6);
     scene.add(fill);
-    const bayLamp = new THREE.PointLight(0xd6b576, 4.7, 8);
+    const bayLamp = new THREE.PointLight(0xeac47e, 5.5, 9);
     bayLamp.position.set(0, .55, 0);
     const warmInspection = new THREE.SpotLight(0xffdab0, 18, 14, .66, .78, 1);
     warmInspection.position.set(-3.4, 6.3, 3.5);
@@ -210,6 +238,33 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
     lowerBayLight.position.set(0,-.85,0);
     scene.add(lowerBayLight);
+    // Low amber floor beacons cast small pools of light along the concrete perimeter.
+    for (const [x,z] of [[-3.3,-3.2],[3.3,-3.2],[-3.3,3.2],[3.3,3.2]] as const) {
+      const fixture=new THREE.Mesh(new THREE.CylinderGeometry(.18,.23,.19,12),
+        new THREE.MeshStandardMaterial({color:0x3a3b30,metalness:.48,roughness:.63}));
+      fixture.position.set(x,.21,z);
+      scene.add(fixture);
+      const lens=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.035,12),
+        new THREE.MeshBasicMaterial({color:0xf5ca75}));
+      lens.position.set(x,.325,z);
+      scene.add(lens);
+      const lamp=new THREE.PointLight(0xe7b968,1.6,3.7);
+      lamp.position.set(x,.52,z);
+      scene.add(lamp);
+    }
+    // Graphic warning placards are fictional set dressing, not safety instructions.
+    const placardMaterial=new THREE.MeshStandardMaterial({color:0x9a824b,metalness:.31,roughness:.73});
+    for (const x of [-4.45,4.45]) {
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.085,1.05,.085),deep);
+      post.position.set(x,.54,-2.8);
+      scene.add(post);
+      const sign=new THREE.Mesh(new THREE.BoxGeometry(1.15,.52,.045),placardMaterial);
+      sign.position.set(x,1.08,-2.8);
+      scene.add(sign);
+      const stripe=new THREE.Mesh(new THREE.BoxGeometry(.89,.06,.052),deep);
+      stripe.position.set(x,1.08,-2.765);
+      scene.add(stripe);
+    }
     // Expansion seams belong to the surrounding concrete, not the bay itself.
     for (const side of [-1,1]) {
       for (let i=0;i<3;i++) {
@@ -351,10 +406,27 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     rearBadge.rotation.y = Math.PI;
     missile.add(rearBadge);
 
-    const glow = new THREE.Mesh(new THREE.ConeGeometry(.23, 1.9, 20, 1, true), exhaustMaterial);
+    // Stylized luminous cinematic exhaust with a white core and orange halo.
+    const glow = new THREE.Mesh(new THREE.ConeGeometry(.36, 2.45, 22, 1, true), exhaustMaterial);
     glow.rotation.x = Math.PI;
-    glow.position.y = -2.44;
+    glow.position.y = -2.67;
     missile.add(glow);
+    const flameCoreMaterial=new THREE.MeshBasicMaterial({
+      color:0xffdd9a,transparent:true,opacity:0,
+      blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,
+    });
+    const flameHaloMaterial=new THREE.MeshBasicMaterial({
+      color:0xff7027,transparent:true,opacity:0,
+      blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,
+    });
+    const flameCore=new THREE.Mesh(new THREE.ConeGeometry(.21,2.65,20,1,true),flameCoreMaterial);
+    flameCore.rotation.x=Math.PI;
+    flameCore.position.y=-2.75;
+    missile.add(flameCore);
+    const flameHalo=new THREE.Mesh(new THREE.ConeGeometry(.55,3.2,24,1,true),flameHaloMaterial);
+    flameHalo.rotation.x=Math.PI;
+    flameHalo.position.y=-3.05;
+    missile.add(flameHalo);
     // Matte inspection markings reinforce scale and material without real engineering.
     for (const y of [-1.03,-.93,-.10,.12,.78]) {
       const thin = new THREE.Mesh(new THREE.TorusGeometry(.412,.006,5,48),brushed);
@@ -462,7 +534,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       missile.position.y = siloModelY(pose) + siloExitOffset(elapsed, reduced);
       missile.rotation.y = Math.sin(timestamp * .00017) * .018;
       missile.visible = siloModelVisible(pose) && pose.ascent < .96;
-      exhaustMaterial.opacity = pose.thrust * .46;
+      const cinematicFlare = missile.visible ? pose.thrust : 0;
+      exhaustMaterial.opacity = cinematicFlare * .92;
+      flameCoreMaterial.opacity = cinematicFlare * .98;
+      flameHaloMaterial.opacity = cinematicFlare * .38;
+      flameCore.scale.y = 1+.14*Math.sin(timestamp*.035);
+      flameHalo.scale.y = 1+.10*Math.sin(timestamp*.047);
       glow.scale.y = Math.max(.01, pose.thrust * (1.1 + .1 * Math.sin(timestamp * .03)));
       particles.visible = missile.visible && pose.thrust > .1;
       const positions = dotGeometry.attributes.position.array as Float32Array;
@@ -474,12 +551,15 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         positions[i * 3 + 2] = Math.sin(a) * (.05 + v * .25);
       }
       dotGeometry.attributes.position.needsUpdate = true;
-      bayLamp.intensity = 2.4 + pose.glow * 3.5;
+      bayLamp.intensity = 2.4 + pose.glow * 3.5 + pose.thrust * 5;
       // Keep the recessed bay in frame. An understated nod follows the launch
       // and eases back to rest before the hatches finish closing.
       const cameraLift = siloCameraLift(elapsed, reduced);
       const sway = reduced ? 0 : Math.sin(timestamp * .00017) * .035;
-      camera.position.set(3.75 + sway, 3.15 + cameraLift * .10, 7.25 - cameraLift * .14);
+      const quake = pose.shake * (reduced ? 0 : 3.3);
+      camera.position.set(3.75 + sway + quake * Math.sin(timestamp*.13),
+        3.15 + cameraLift * .10 + quake * .62 * Math.cos(timestamp*.10),
+        7.25 - cameraLift * .14);
       camera.lookAt(0, .65 + cameraLift * .30, 0);
       renderer.render(scene, camera);
     }
