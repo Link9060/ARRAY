@@ -13,6 +13,7 @@ describe('ARRAY live mission adapter', () => {
     id:'server-123',
     agentId:'operations-03',
     operationsMode:'coding' as const,
+    instructions:'Use concise bullet points.',
     model:'@cf/qwen/qwen3.8-27b',
     objective:'Summarize a provided article',
     policy:'review' as const,
@@ -25,6 +26,7 @@ describe('ARRAY live mission adapter', () => {
     expect(mission.phase).toBe('queued');
     expect(mission.agentName).toBe('Operations 03');
     expect(mission.operationsMode).toBe('coding');
+    expect(mission.instructions).toBe('Use concise bullet points.');
     expect(mission.model).toBe('@cf/qwen/qwen3.8-27b');
     expect(isActiveMission(mission.phase)).toBe(true);
     expect(phaseLabel(mission.phase)).toBe('Queued');
