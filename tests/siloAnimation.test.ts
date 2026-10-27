@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SILO_SEQUENCE_MS, siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset,
+  SILO_SEQUENCE_MS, siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, siloVisualAlert,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y, SILO_MODEL_TIP_Y,
 } from '../src/engine/siloAnimation';
 
@@ -55,6 +55,13 @@ describe('3D launch visualization choreography', () => {
     expect(siloExitOffset(SILO_SEQUENCE_MS * .85)).toBeGreaterThan(1);
     expect(siloExitOffset(SILO_SEQUENCE_MS * .93)).toBe(9);
     expect(siloExitOffset(SILO_SEQUENCE_MS * .8, true)).toBe(0);
+  });
+  it('switches decorative warning lights on during visual launch and off at reset', () => {
+    expect(siloVisualAlert(null)).toBe(false);
+    expect(siloVisualAlert(0)).toBe(false);
+    expect(siloVisualAlert(SILO_SEQUENCE_MS*.15)).toBe(true);
+    expect(siloVisualAlert(SILO_SEQUENCE_MS*.79)).toBe(true);
+    expect(siloVisualAlert(SILO_SEQUENCE_MS)).toBe(false);
   });
   it('removes motion and particle exhaust for reduced-motion preference', () => {
     const pose = siloPose(500, true);
