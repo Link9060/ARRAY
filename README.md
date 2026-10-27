@@ -63,6 +63,15 @@ When **Operations → Coding** is selected, ARRAY sends `operationsMode: "coding
 Twelve slots are UI identities, not a promise of twelve concurrent hosted model processes. The current mission server still limits actual concurrency to two jobs.
 
 
+
+## Night Watch workstation (October 2026)
+
+The deployment interface separates **agent configuration on the left** from the **fictional surveillance-camera scene and dispatch controls on the right**. All twelve agent slots remain available, with instructions and review policy immediately beneath them.
+
+The right-side 3D WebGL viewport has a procedural dark forest, star field, amber ground beacons, warning-themed set dressing, a layered decorative exhaust plume, and bounded camera shake. It remains illustrative rather than real telemetry or a hardware-connected control room.
+
+The console is a theatrical interface for software dispatch only: pick any three of six abstract software checks, confirm two digital verification dials, open the decorative safety cover, and submit the configured **text-only agent mission**. The controls never provide weapon instructions, access to physical systems, real purchase permissions, or code execution. The **Camera Test** button plays the scene without contacting the AI backend. Reduced-motion preferences are respected. The three-check rule and dispatch conditions have isolated unit tests.
+
 ## Three.js launch bay
 
 The Launch Array has a decorative WebGL scene built with Three.js (`src/components/LaunchSilo3D.tsx`):
