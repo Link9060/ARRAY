@@ -400,11 +400,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.add(ground);
     // A continuous concrete surface with a hole makes the bay feel recessed
     // into the installation rather than perched on a display pedestal.
+    const groundTexture=createGroundTexture();
     const floorDeck = new THREE.Mesh(
       new THREE.RingGeometry(1.69, 14, 112),
       new THREE.MeshStandardMaterial({
-        color:0x242a24, metalness:.18, roughness:.94,
-        bumpMap:steelTexture, bumpScale:.034, side:THREE.DoubleSide,
+        color:0x555b52, metalness:.09, roughness:.97,
+        map:groundTexture,bumpMap:groundTexture,bumpScale:.13,side:THREE.DoubleSide,
       }),
     );
     floorDeck.rotation.x=-Math.PI/2;
@@ -437,20 +438,83 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       lamp.position.set(x,.52,z);
       scene.add(lamp);
     }
-    // Readable warning art with explicit fictional-site labeling.
-    const warningTexture = createWarningPlacard();
-    const signMaterial = new THREE.MeshBasicMaterial({map:warningTexture,side:THREE.DoubleSide});
-    for (const [x,z] of [[-2.75,-1.85],[2.75,-1.85]] as const) {
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.095,1.04,.10),deep);
-      post.position.set(x,.60,z);
-      scene.add(post);
-      const signBacking=new THREE.Mesh(new THREE.BoxGeometry(1.25,.70,.055),deep);
-      signBacking.position.set(x,1.18,z);
-      scene.add(signBacking);
-      const placard=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.59),signMaterial);
-      placard.position.set(x,1.18,z+.034);
-      scene.add(placard);
+    // Contrasting roadside-style yellow signs, both clearly fictional.
+    const triangleTexture=createTriangleSymbol();
+    const squareTexture=createSquareWarning();
+    const backingMaterial=new THREE.MeshStandardMaterial({color:0x242521,metalness:.38,roughness:.65});
+    const postGeometry=new THREE.BoxGeometry(.085,1.62,.11);
+    const postMaterial=new THREE.MeshStandardMaterial({color:0x5d685f,metalness:.72,roughness:.47});
+    // Leaning triangular radiation warning on the left.
+    const leftSign=new THREE.Group();
+    leftSign.position.set(-2.78,.29,-1.95);
+    leftSign.rotation.z=-.16;
+    const leftPost=new THREE.Mesh(postGeometry,postMaterial);
+    leftPost.position.y=.76;leftSign.add(leftPost);
+    const warningShape=new THREE.Shape();
+    warningShape.moveTo(-.79,-.72);warningShape.lineTo(.79,-.72);
+    warningShape.lineTo(0,.75);warningShape.closePath();
+    const triangleBacking=new THREE.Mesh(new THREE.ShapeGeometry(warningShape),backingMaterial);
+    triangleBacking.position.set(0,1.64,.01);
+    leftSign.add(triangleBacking);
+    const triangleFace=new THREE.Mesh(new THREE.PlaneGeometry(1.65,1.65),
+      new THREE.MeshBasicMaterial({map:triangleTexture,transparent:true,side:THREE.DoubleSide,depthWrite:false}));
+    triangleFace.position.set(0,1.64,.055);
+    leftSign.add(triangleFace);
+    scene.add(leftSign);
+    // Squarer, upright yellow warning placard.
+    const rightSign=new THREE.Group();
+    rightSign.position.set(2.85,.29,-1.96);
+    const rightPost=new THREE.Mesh(postGeometry,postMaterial);
+    rightPost.position.y=.78;rightSign.add(rightPost);
+    const rectangleBacking=new THREE.Mesh(new THREE.BoxGeometry(1.35,1.25,.07),backingMaterial);
+    rectangleBacking.position.set(0,1.68,0);rightSign.add(rectangleBacking);
+    const squareFace=new THREE.Mesh(new THREE.PlaneGeometry(1.29,1.2),
+      new THREE.MeshBasicMaterial({map:squareTexture,side:THREE.DoubleSide}));
+    squareFace.position.set(0,1.68,.048);
+    rightSign.add(squareFace);
+    scene.add(rightSign);
+
+    // Decorative distant wire line (silhouette only), safely outside the bay.
+    const wireMaterial=new THREE.LineBasicMaterial({color:0x63736b,transparent:true,opacity:.57});
+    for (const height of [1.3,1.63]) {
+      const points:THREE.Vector3[]=[];
+      for(let i=0;i<=80;i++){
+        const x=-9+i*18/80;
+        points.push(new THREE.Vector3(x,height+Math.sin(i*.5)*.018,-5.8));
+      }
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),wireMaterial));
     }
+    for(let i=0;i<8;i++){
+      const x=-8.75+i*2.5;
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.06,1.68,.08),postMaterial);
+      post.position.set(x,.87,-5.8);scene.add(post);
+    }
+    // Repeating crossed glints read as distant barbs, not functional barrier details.
+    const barbs:THREE.Vector3[]=[];
+    for(let i=0;i<46;i++){
+      const x=-8.9+i*.39;
+      for(const y of [1.3,1.63]){
+        barbs.push(new THREE.Vector3(x-.055,y-.05,-5.8),new THREE.Vector3(x+.055,y+.05,-5.8));
+        barbs.push(new THREE.Vector3(x-.055,y+.05,-5.8),new THREE.Vector3(x+.055,y-.05,-5.8));
+      }
+    }
+    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(barbs),wireMaterial));
+
+    // Pebbles and surface debris break up the perfect circular concrete floor.
+    const gravelGeometry=new THREE.IcosahedronGeometry(1,0);
+    const gravelMat=new THREE.MeshStandardMaterial({color:0x464c44,roughness:1});
+    const gravel=new THREE.InstancedMesh(gravelGeometry,gravelMat,115);
+    for(let i=0;i<115;i++){
+      const angle=i*2.39996;
+      const radius=2.1+(i*31%91)/91*6.2;
+      const dummy=new THREE.Object3D();
+      dummy.position.set(Math.cos(angle)*radius,.104,Math.sin(angle)*radius);
+      dummy.rotation.set(i*.37,i*.81,i*.25);
+      dummy.scale.set(.018+(i%7)*.012,.006+(i%4)*.005,.026+(i%9)*.011);
+      dummy.updateMatrix();gravel.setMatrixAt(i,dummy.matrix);
+    }
+    gravel.instanceMatrix.needsUpdate=true;
+    scene.add(gravel);
     // Expansion seams belong to the surrounding concrete, not the bay itself.
     for (const side of [-1,1]) {
       for (let i=0;i<3;i++) {
