@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { evolveSmoke, SMOKE_EMIT_INTERVAL_MS, type SmokeSeed } from '../engine/smokeTrail';
 import {
-  siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, SILO_SEQUENCE_MS,
+  siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, siloVisualAlert, SILO_SEQUENCE_MS,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y,
 } from '../engine/siloAnimation';
 
@@ -799,7 +799,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const elapsed = startedRef.current === null ? null : timestamp - startedRef.current;
       if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
       const pose = siloPose(elapsed, reduced);
-      const alertActive = elapsed !== null && elapsed < SILO_SEQUENCE_MS && (pose.hatch > .04 || pose.thrust > .02);
+      const alertActive = siloVisualAlert(elapsed);
       const beaconColor = alertActive ? 0xed4238 : 0xedb341;
       for(let i=0;i<rotatingBeacons.length;i++){
         const beacon=rotatingBeacons[i];
