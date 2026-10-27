@@ -10,6 +10,7 @@ export interface Mission {
   objective: string;
   policy: ExecutionPolicy;
   operationsMode?: OperationsMode;
+  instructions?: string;
   model?: string;
   phase: MissionPhase;
   createdAt: number;
