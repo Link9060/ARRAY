@@ -273,48 +273,85 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.fog = new THREE.FogExp2(0x080f12, .027);
     const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
     scene.add(new THREE.HemisphereLight(0x607c92, 0x100f08, .78));
-    // Night backdrop: moonlit treeline, faint stars and distant hillside.
-    const starsPosition: number[] = [];
-    for (let i=0;i<115;i++) {
-      const angle=i*2.399963;
-      const x=Math.sin(angle)*(14+(i%7)*2);
-      const z=-16-(i%9)*2;
-      const y=5+((i*23)%67)/67*11;
-      starsPosition.push(x,y,z);
+    // Background follows only camera orientation, like a distant outdoor sky.
+    // The camera looks downward at the bay, so world-positioned stars were out of frame.
+    scene.add(camera);
+    const sky = new THREE.Group();
+    camera.add(sky);
+    const starsPosition:number[]=[];
+    let starSeed=8414;
+    const nextStar=()=>{starSeed=(Math.imul(starSeed,1664525)+1013904223)|0;return (starSeed>>>0)/4294967296};
+    for(let i=0;i<(lowDetail?180:430);i++){
+      starsPosition.push((nextStar()-.5)*53,(nextStar()-.5)*27,-28-nextStar()*16);
     }
     const starGeometry=new THREE.BufferGeometry();
     starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starsPosition,3));
-    scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({
-      color:0xb9c9c5,size:.075,sizeAttenuation:true,opacity:.54,transparent:true,
-    })));
-    // Uneven, layered pine silhouettes, with subtle height, lean and density changes.
-    // Reuse geometries to keep the night-scene draw overhead modest.
-    const darkTree = new THREE.MeshStandardMaterial({color:0x0b1b18,roughness:1});
-    const distantTree = new THREE.MeshStandardMaterial({color:0x162620,roughness:1});
-    const treeCone = new THREE.ConeGeometry(1,1,7);
-    const treeTrunk = new THREE.CylinderGeometry(.12,.17,1,5);
-    for (let i=0;i<52;i++) {
-      const row = i % 3;
-      const x = ((i * 13) % 53 - 26) * .69 + Math.sin(i*1.17)*.65;
-      const z = -8.7 - row*2.9 - (i % 5)*.36;
-      const h = 2.6 + ((i*19)%13)*.24;
-      const tree = new THREE.Group();
-      tree.position.set(x,0,z);
-      tree.rotation.z = Math.sin(i*2.45)*.035;
-      const trunk=new THREE.Mesh(treeTrunk,darkTree);
-      trunk.position.y=h*.19;
-      trunk.scale.set(.6,h*.38,.6);
-      tree.add(trunk);
-      for (let layer=0; layer<3; layer++) {
-        const foliage=new THREE.Mesh(treeCone, row===2 ? distantTree : darkTree);
-        const width = .78 + (i%5)*.11;
-        foliage.scale.set(width*(1-layer*.23),h*(.59-layer*.12),width*(1-layer*.23));
-        foliage.position.set(Math.sin(i+layer)*.055,h*(.43+layer*.21),0);
-        foliage.rotation.y=i*.7+layer*.4;
-        tree.add(foliage);
+    const stars = new THREE.Points(starGeometry,new THREE.PointsMaterial({
+      color:0xcdd8d1,size:lowDetail?.15:.25,sizeAttenuation:true,
+      opacity:.82,transparent:true,depthWrite:false,fog:false,
+    }));
+    sky.add(stars);
+    const moonGlowTexture=createMoonGlowTexture();
+    const moonHalo=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:moonGlowTexture,color:0xc4dbd6,transparent:true,
+      blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,fog:false,
+    }));
+    moonHalo.position.set(-7.1,6.6,-34);
+    moonHalo.scale.set(8.3,8.3,1);
+    sky.add(moonHalo);
+    const moonSurface = paintedTexture(ctx=>{
+      ctx.fillStyle='#c4cec6';ctx.fillRect(0,0,512,512);
+      let seed=847;
+      const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
+      for(let i=0;i<90;i++){
+        const x=rnd()*512,y=rnd()*512,r=1.5+rnd()*24;
+        ctx.fillStyle=`rgba(74,93,89,${.035+rnd()*.15})`;
+        ctx.beginPath();ctx.ellipse(x,y,r,r*.75,rnd()*6,0,2*Math.PI);ctx.fill();
       }
-      scene.add(tree);
+    });
+    const moon=new THREE.Mesh(new THREE.SphereGeometry(1.03,40,28),
+      new THREE.MeshBasicMaterial({map:moonSurface,color:0xe4e6d8,fog:false}));
+    moon.position.set(-7.1,6.6,-33.4);
+    sky.add(moon);
+
+    // Organic layered evergreen clusters. Instancing keeps rendering efficient.
+    const treeTrunk=new THREE.CylinderGeometry(.12,.19,1,6);
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x1e2119,roughness:1});
+    const foliageGeo=new THREE.IcosahedronGeometry(1,1);
+    const leafMats=[
+      new THREE.MeshStandardMaterial({color:0x122620,roughness:1,flatShading:true}),
+      new THREE.MeshStandardMaterial({color:0x1b332b,roughness:1,flatShading:true}),
+      new THREE.MeshStandardMaterial({color:0x0c1c17,roughness:1,flatShading:true}),
+    ];
+    const trunks=new THREE.InstancedMesh(treeTrunk,trunkMat,53);
+    const foliage=leafMats.map(mat=>new THREE.InstancedMesh(foliageGeo,mat,210));
+    const foliageIndices=[0,0,0];
+    const transform=new THREE.Object3D();
+    for(let i=0;i<53;i++){
+      const row=i%3;
+      const x=((i*13)%53-26)*.69+Math.sin(i*1.17)*.65;
+      const z=-9.3-row*2.95-(i%5)*.4;
+      const h=3+((i*19)%13)*.22;
+      transform.position.set(x,h*.21,z);
+      transform.rotation.set(0,i*.17,Math.sin(i*2.45)*.025);
+      transform.scale.set(.6,h*.42,.6);
+      transform.updateMatrix();
+      trunks.setMatrixAt(i,transform.matrix);
+      const clusters=8+(i%4);
+      for(let j=0;j<clusters;j++){
+        const index=(i+j)%3;
+        const mesh=foliage[index], idx=foliageIndices[index]++;
+        const p=j/clusters,spread=(1-p)*(.62+(i%4)*.07);
+        const angle=j*2.399+i*.69;
+        transform.position.set(x+Math.cos(angle)*spread,h*(.47+.51*p),z+Math.sin(angle)*spread);
+        transform.rotation.set(j*.13,i*.7+j*.33,j*.09);
+        transform.scale.set(.43+(1-p)*.24,.52+(1-p)*.20,.42+(1-p)*.22);
+        transform.updateMatrix();
+        mesh.setMatrixAt(idx,transform.matrix);
+      }
     }
+    scene.add(trunks);
+    foliage.forEach((mesh,i)=>{mesh.count=foliageIndices[i];mesh.instanceMatrix.needsUpdate=true;scene.add(mesh);});
     const key = new THREE.DirectionalLight(0xffeed1, 4.2);
     key.position.set(-3.5, 7.8, 3.8);
     if (!lowDetail) {
