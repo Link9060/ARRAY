@@ -32,6 +32,9 @@ describe('3D launch visualization choreography', () => {
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .50))).toBe(true);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS + 25))).toBe(false);
     expect(siloPose(SILO_SEQUENCE_MS + 25).hatch).toBe(0);
+    // The visual stays active longer so a lit exhaust can be visible at the camera.
+    expect(siloPose(SILO_SEQUENCE_MS*.75).thrust).toBeGreaterThan(.9);
+    expect(siloPose(SILO_SEQUENCE_MS*.85).hatch).toBeGreaterThan(.9);
   });
   it('keeps the camera move bounded and returns it smoothly to its home position', () => {
     expect(siloCameraLift(null)).toBe(0);
@@ -49,8 +52,8 @@ describe('3D launch visualization choreography', () => {
   it('moves the decorative prop clear of frame before the doors close', () => {
     expect(siloExitOffset(null)).toBe(0);
     expect(siloExitOffset(SILO_SEQUENCE_MS * .62)).toBe(0);
-    expect(siloExitOffset(SILO_SEQUENCE_MS * .79)).toBeGreaterThan(8);
-    expect(siloExitOffset(SILO_SEQUENCE_MS * .85)).toBe(9);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .85)).toBeGreaterThan(1);
+    expect(siloExitOffset(SILO_SEQUENCE_MS * .93)).toBe(9);
     expect(siloExitOffset(SILO_SEQUENCE_MS * .8, true)).toBe(0);
   });
   it('removes motion and particle exhaust for reduced-motion preference', () => {
