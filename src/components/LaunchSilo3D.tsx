@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { evolveSmoke, SMOKE_EMIT_INTERVAL_MS, type SmokeSeed } from '../engine/smokeTrail';
 import {
   siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, SILO_SEQUENCE_MS,
   SILO_DECK_Y, SILO_MODEL_SCALE_Y,
@@ -94,33 +95,6 @@ function createSteelTexture(): THREE.CanvasTexture {
 
 
 /** Legible, high-contrast fictional location placard for the camera feed. */
-function createWarningPlacard(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas 2D is unavailable.');
-  ctx.fillStyle = '#d3b45d';
-  ctx.fillRect(0,0,512,256);
-  ctx.fillStyle = '#161810';
-  ctx.fillRect(14,14,484,228);
-  ctx.fillStyle = '#d9be74';
-  ctx.fillRect(25,25,462,66);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#1a1b14';
-  ctx.font = 'bold 51px monospace';
-  ctx.fillText('CAUTION',256,77);
-  ctx.fillStyle = '#e9dfb7';
-  ctx.font = 'bold 33px monospace';
-  ctx.fillText('SIMULATED SITE',256,149);
-  ctx.font = '24px monospace';
-  ctx.fillText('CAMERA SET DRESSING',256,198);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-/** Camera-facing luminous plume texture, so it reads at small viewport sizes. */
 function createFlareTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -138,6 +112,91 @@ function createFlareTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+
+function paintedTexture(draw: (ctx:CanvasRenderingContext2D)=>void, width=512, height=512): THREE.CanvasTexture {
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d');
+  if(!ctx) throw new Error('2D canvas unavailable');
+  draw(ctx);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+function createGroundTexture(): THREE.CanvasTexture {
+  const texture=paintedTexture(ctx=>{
+    ctx.fillStyle='#44483c';ctx.fillRect(0,0,512,512);
+    let seed=29583;
+    const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
+    for(let i=0;i<23000;i++){
+      const v=Math.floor(38+rnd()*84);
+      ctx.fillStyle=`rgba(${v},${v+3},${Math.max(0,v-7)},${.08+rnd()*.32})`;
+      const x=rnd()*512,y=rnd()*512,k=.5+rnd()*4;
+      ctx.fillRect(x,y,k,k*.5);
+    }
+    for(let i=0;i<65;i++){
+      let x=rnd()*512,y=rnd()*512;
+      ctx.beginPath();ctx.moveTo(x,y);
+      for(let j=0;j<5;j++){x+=(rnd()-.5)*35;y+=rnd()*13;ctx.lineTo(x,y)}
+      ctx.strokeStyle='rgba(12,18,15,.13)';ctx.lineWidth=.4+rnd();ctx.stroke();
+    }
+    for(let i=0;i<45;i++){
+      const x=rnd()*512,y=rnd()*512;
+      ctx.fillStyle='rgba(75,82,62,.20)';ctx.beginPath();ctx.ellipse(x,y,3+rnd()*15,2+rnd()*8,0,0,Math.PI*2);ctx.fill();
+    }
+  });
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(5,5);
+  return texture;
+}
+function createSmokeTexture(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    const gr=ctx.createRadialGradient(128,128,11,128,128,126);
+    gr.addColorStop(0,'rgba(215,221,216,.48)');
+    gr.addColorStop(.35,'rgba(169,176,170,.31)');
+    gr.addColorStop(.7,'rgba(120,133,130,.13)');
+    gr.addColorStop(1,'rgba(94,106,102,0)');
+    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
+  },256,256);
+}
+function createMoonGlowTexture(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    const gr=ctx.createRadialGradient(128,128,12,128,128,127);
+    gr.addColorStop(0,'rgba(218,230,222,.37)');
+    gr.addColorStop(.18,'rgba(173,193,185,.20)');
+    gr.addColorStop(.55,'rgba(137,170,174,.07)');
+    gr.addColorStop(1,'rgba(90,125,137,0)');
+    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
+  },256,256);
+}
+function createSquareWarning(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    ctx.fillStyle='#e2b946';ctx.fillRect(0,0,512,512);
+    ctx.strokeStyle='#191914';ctx.lineWidth=20;ctx.strokeRect(22,22,468,468);
+    ctx.textAlign='center';ctx.fillStyle='#191914';
+    ctx.font='bold 69px monospace';ctx.fillText('WARNING',256,138);
+    ctx.fillRect(49,174,414,10);
+    ctx.font='bold 39px monospace';ctx.fillText('RESTRICTED',256,252);
+    ctx.fillText('CAMERA AREA',256,308);
+    ctx.font='24px monospace';ctx.fillText('SIMULATED LOCATION',256,406);
+    ctx.fillText('NO LIVE EQUIPMENT',256,450);
+  });
+}
+function createTriangleSymbol(): THREE.CanvasTexture {
+  return paintedTexture(ctx=>{
+    ctx.clearRect(0,0,512,512);
+    ctx.fillStyle='#e2b946';ctx.strokeStyle='#10120d';ctx.lineWidth=19;
+    ctx.beginPath();ctx.moveTo(256,40);ctx.lineTo(484,449);ctx.lineTo(28,449);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.translate(256,306);
+    ctx.fillStyle='#10120d';
+    for(let i=0;i<3;i++){
+      ctx.save();ctx.rotate(-Math.PI/2+i*2*Math.PI/3);
+      ctx.beginPath();ctx.arc(0,0,119,-.49,.49);
+      ctx.arc(0,0,41,.49,-.49,true);ctx.closePath();ctx.fill();ctx.restore();
+    }
+    ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.fill();
+  });
 }
 
 export default function LaunchSilo3D({ launchSignal }: Props) {
@@ -187,48 +246,85 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.fog = new THREE.FogExp2(0x080f12, .027);
     const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
     scene.add(new THREE.HemisphereLight(0x607c92, 0x100f08, .78));
-    // Night backdrop: moonlit treeline, faint stars and distant hillside.
-    const starsPosition: number[] = [];
-    for (let i=0;i<115;i++) {
-      const angle=i*2.399963;
-      const x=Math.sin(angle)*(14+(i%7)*2);
-      const z=-16-(i%9)*2;
-      const y=5+((i*23)%67)/67*11;
-      starsPosition.push(x,y,z);
+    // Background follows only camera orientation, like a distant outdoor sky.
+    // The camera looks downward at the bay, so world-positioned stars were out of frame.
+    scene.add(camera);
+    const sky = new THREE.Group();
+    camera.add(sky);
+    const starsPosition:number[]=[];
+    let starSeed=8414;
+    const nextStar=()=>{starSeed=(Math.imul(starSeed,1664525)+1013904223)|0;return (starSeed>>>0)/4294967296};
+    for(let i=0;i<(lowDetail?180:430);i++){
+      starsPosition.push((nextStar()-.5)*53,(nextStar()-.5)*27,-28-nextStar()*16);
     }
     const starGeometry=new THREE.BufferGeometry();
     starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starsPosition,3));
-    scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({
-      color:0xb9c9c5,size:.075,sizeAttenuation:true,opacity:.54,transparent:true,
-    })));
-    // Uneven, layered pine silhouettes, with subtle height, lean and density changes.
-    // Reuse geometries to keep the night-scene draw overhead modest.
-    const darkTree = new THREE.MeshStandardMaterial({color:0x0b1b18,roughness:1});
-    const distantTree = new THREE.MeshStandardMaterial({color:0x162620,roughness:1});
-    const treeCone = new THREE.ConeGeometry(1,1,7);
-    const treeTrunk = new THREE.CylinderGeometry(.12,.17,1,5);
-    for (let i=0;i<52;i++) {
-      const row = i % 3;
-      const x = ((i * 13) % 53 - 26) * .69 + Math.sin(i*1.17)*.65;
-      const z = -8.7 - row*2.9 - (i % 5)*.36;
-      const h = 2.6 + ((i*19)%13)*.24;
-      const tree = new THREE.Group();
-      tree.position.set(x,0,z);
-      tree.rotation.z = Math.sin(i*2.45)*.035;
-      const trunk=new THREE.Mesh(treeTrunk,darkTree);
-      trunk.position.y=h*.19;
-      trunk.scale.set(.6,h*.38,.6);
-      tree.add(trunk);
-      for (let layer=0; layer<3; layer++) {
-        const foliage=new THREE.Mesh(treeCone, row===2 ? distantTree : darkTree);
-        const width = .78 + (i%5)*.11;
-        foliage.scale.set(width*(1-layer*.23),h*(.59-layer*.12),width*(1-layer*.23));
-        foliage.position.set(Math.sin(i+layer)*.055,h*(.43+layer*.21),0);
-        foliage.rotation.y=i*.7+layer*.4;
-        tree.add(foliage);
+    const stars = new THREE.Points(starGeometry,new THREE.PointsMaterial({
+      color:0xcdd8d1,size:lowDetail?.15:.25,sizeAttenuation:true,
+      opacity:.82,transparent:true,depthWrite:false,fog:false,
+    }));
+    sky.add(stars);
+    const moonGlowTexture=createMoonGlowTexture();
+    const moonHalo=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:moonGlowTexture,color:0xc4dbd6,transparent:true,
+      blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,fog:false,
+    }));
+    moonHalo.position.set(-7.1,6.6,-34);
+    moonHalo.scale.set(8.3,8.3,1);
+    sky.add(moonHalo);
+    const moonSurface = paintedTexture(ctx=>{
+      ctx.fillStyle='#c4cec6';ctx.fillRect(0,0,512,512);
+      let seed=847;
+      const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
+      for(let i=0;i<90;i++){
+        const x=rnd()*512,y=rnd()*512,r=1.5+rnd()*24;
+        ctx.fillStyle=`rgba(74,93,89,${.035+rnd()*.15})`;
+        ctx.beginPath();ctx.ellipse(x,y,r,r*.75,rnd()*6,0,2*Math.PI);ctx.fill();
       }
-      scene.add(tree);
+    });
+    const moon=new THREE.Mesh(new THREE.SphereGeometry(1.03,40,28),
+      new THREE.MeshBasicMaterial({map:moonSurface,color:0xe4e6d8,fog:false}));
+    moon.position.set(-7.1,6.6,-33.4);
+    sky.add(moon);
+
+    // Organic layered evergreen clusters. Instancing keeps rendering efficient.
+    const treeTrunk=new THREE.CylinderGeometry(.12,.19,1,6);
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x1e2119,roughness:1});
+    const foliageGeo=new THREE.IcosahedronGeometry(1,1);
+    const leafMats=[
+      new THREE.MeshStandardMaterial({color:0x122620,roughness:1,flatShading:true}),
+      new THREE.MeshStandardMaterial({color:0x1b332b,roughness:1,flatShading:true}),
+      new THREE.MeshStandardMaterial({color:0x0c1c17,roughness:1,flatShading:true}),
+    ];
+    const trunks=new THREE.InstancedMesh(treeTrunk,trunkMat,53);
+    const foliage=leafMats.map(mat=>new THREE.InstancedMesh(foliageGeo,mat,210));
+    const foliageIndices=[0,0,0];
+    const transform=new THREE.Object3D();
+    for(let i=0;i<53;i++){
+      const row=i%3;
+      const x=((i*13)%53-26)*.69+Math.sin(i*1.17)*.65;
+      const z=-9.3-row*2.95-(i%5)*.4;
+      const h=3+((i*19)%13)*.22;
+      transform.position.set(x,h*.21,z);
+      transform.rotation.set(0,i*.17,Math.sin(i*2.45)*.025);
+      transform.scale.set(.6,h*.42,.6);
+      transform.updateMatrix();
+      trunks.setMatrixAt(i,transform.matrix);
+      const clusters=8+(i%4);
+      for(let j=0;j<clusters;j++){
+        const index=(i+j)%3;
+        const mesh=foliage[index], idx=foliageIndices[index]++;
+        const p=j/clusters,spread=(1-p)*(.62+(i%4)*.07);
+        const angle=j*2.399+i*.69;
+        transform.position.set(x+Math.cos(angle)*spread,h*(.47+.51*p),z+Math.sin(angle)*spread);
+        transform.rotation.set(j*.13,i*.7+j*.33,j*.09);
+        transform.scale.set(.43+(1-p)*.24,.52+(1-p)*.20,.42+(1-p)*.22);
+        transform.updateMatrix();
+        mesh.setMatrixAt(idx,transform.matrix);
+      }
     }
+    scene.add(trunks);
+    foliage.forEach((mesh,i)=>{mesh.count=foliageIndices[i];mesh.instanceMatrix.needsUpdate=true;scene.add(mesh);});
     const key = new THREE.DirectionalLight(0xffeed1, 4.2);
     key.position.set(-3.5, 7.8, 3.8);
     if (!lowDetail) {
@@ -277,11 +373,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.add(ground);
     // A continuous concrete surface with a hole makes the bay feel recessed
     // into the installation rather than perched on a display pedestal.
+    const groundTexture=createGroundTexture();
     const floorDeck = new THREE.Mesh(
       new THREE.RingGeometry(1.69, 14, 112),
       new THREE.MeshStandardMaterial({
-        color:0x242a24, metalness:.18, roughness:.94,
-        bumpMap:steelTexture, bumpScale:.034, side:THREE.DoubleSide,
+        color:0x555b52, metalness:.09, roughness:.97,
+        map:groundTexture,bumpMap:groundTexture,bumpScale:.13,side:THREE.DoubleSide,
       }),
     );
     floorDeck.rotation.x=-Math.PI/2;
@@ -314,20 +411,83 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       lamp.position.set(x,.52,z);
       scene.add(lamp);
     }
-    // Readable warning art with explicit fictional-site labeling.
-    const warningTexture = createWarningPlacard();
-    const signMaterial = new THREE.MeshBasicMaterial({map:warningTexture,side:THREE.DoubleSide});
-    for (const [x,z] of [[-2.75,-1.85],[2.75,-1.85]] as const) {
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.095,1.04,.10),deep);
-      post.position.set(x,.60,z);
-      scene.add(post);
-      const signBacking=new THREE.Mesh(new THREE.BoxGeometry(1.25,.70,.055),deep);
-      signBacking.position.set(x,1.18,z);
-      scene.add(signBacking);
-      const placard=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.59),signMaterial);
-      placard.position.set(x,1.18,z+.034);
-      scene.add(placard);
+    // Contrasting roadside-style yellow signs, both clearly fictional.
+    const triangleTexture=createTriangleSymbol();
+    const squareTexture=createSquareWarning();
+    const backingMaterial=new THREE.MeshStandardMaterial({color:0x242521,metalness:.38,roughness:.65});
+    const postGeometry=new THREE.BoxGeometry(.085,1.62,.11);
+    const postMaterial=new THREE.MeshStandardMaterial({color:0x5d685f,metalness:.72,roughness:.47});
+    // Leaning triangular radiation warning on the left.
+    const leftSign=new THREE.Group();
+    leftSign.position.set(-2.78,.29,-1.95);
+    leftSign.rotation.z=-.16;
+    const leftPost=new THREE.Mesh(postGeometry,postMaterial);
+    leftPost.position.y=.76;leftSign.add(leftPost);
+    const warningShape=new THREE.Shape();
+    warningShape.moveTo(-.79,-.72);warningShape.lineTo(.79,-.72);
+    warningShape.lineTo(0,.75);warningShape.closePath();
+    const triangleBacking=new THREE.Mesh(new THREE.ShapeGeometry(warningShape),backingMaterial);
+    triangleBacking.position.set(0,1.64,.01);
+    leftSign.add(triangleBacking);
+    const triangleFace=new THREE.Mesh(new THREE.PlaneGeometry(1.65,1.65),
+      new THREE.MeshBasicMaterial({map:triangleTexture,transparent:true,side:THREE.DoubleSide,depthWrite:false}));
+    triangleFace.position.set(0,1.64,.055);
+    leftSign.add(triangleFace);
+    scene.add(leftSign);
+    // Squarer, upright yellow warning placard.
+    const rightSign=new THREE.Group();
+    rightSign.position.set(2.85,.29,-1.96);
+    const rightPost=new THREE.Mesh(postGeometry,postMaterial);
+    rightPost.position.y=.78;rightSign.add(rightPost);
+    const rectangleBacking=new THREE.Mesh(new THREE.BoxGeometry(1.35,1.25,.07),backingMaterial);
+    rectangleBacking.position.set(0,1.68,0);rightSign.add(rectangleBacking);
+    const squareFace=new THREE.Mesh(new THREE.PlaneGeometry(1.29,1.2),
+      new THREE.MeshBasicMaterial({map:squareTexture,side:THREE.DoubleSide}));
+    squareFace.position.set(0,1.68,.048);
+    rightSign.add(squareFace);
+    scene.add(rightSign);
+
+    // Decorative distant wire line (silhouette only), safely outside the bay.
+    const wireMaterial=new THREE.LineBasicMaterial({color:0x63736b,transparent:true,opacity:.57});
+    for (const height of [1.3,1.63]) {
+      const points:THREE.Vector3[]=[];
+      for(let i=0;i<=80;i++){
+        const x=-9+i*18/80;
+        points.push(new THREE.Vector3(x,height+Math.sin(i*.5)*.018,-5.8));
+      }
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),wireMaterial));
     }
+    for(let i=0;i<8;i++){
+      const x=-8.75+i*2.5;
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.06,1.68,.08),postMaterial);
+      post.position.set(x,.87,-5.8);scene.add(post);
+    }
+    // Repeating crossed glints read as distant barbs, not functional barrier details.
+    const barbs:THREE.Vector3[]=[];
+    for(let i=0;i<46;i++){
+      const x=-8.9+i*.39;
+      for(const y of [1.3,1.63]){
+        barbs.push(new THREE.Vector3(x-.055,y-.05,-5.8),new THREE.Vector3(x+.055,y+.05,-5.8));
+        barbs.push(new THREE.Vector3(x-.055,y+.05,-5.8),new THREE.Vector3(x+.055,y-.05,-5.8));
+      }
+    }
+    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(barbs),wireMaterial));
+
+    // Pebbles and surface debris break up the perfect circular concrete floor.
+    const gravelGeometry=new THREE.IcosahedronGeometry(1,0);
+    const gravelMat=new THREE.MeshStandardMaterial({color:0x464c44,roughness:1});
+    const gravel=new THREE.InstancedMesh(gravelGeometry,gravelMat,115);
+    for(let i=0;i<115;i++){
+      const angle=i*2.39996;
+      const radius=2.1+(i*31%91)/91*6.2;
+      const dummy=new THREE.Object3D();
+      dummy.position.set(Math.cos(angle)*radius,.104,Math.sin(angle)*radius);
+      dummy.rotation.set(i*.37,i*.81,i*.25);
+      dummy.scale.set(.018+(i%7)*.012,.006+(i%4)*.005,.026+(i%9)*.011);
+      dummy.updateMatrix();gravel.setMatrixAt(i,dummy.matrix);
+    }
+    gravel.instanceMatrix.needsUpdate=true;
+    scene.add(gravel);
     // Expansion seams belong to the surrounding concrete, not the bay itself.
     for (const side of [-1,1]) {
       for (let i=0;i<3;i++) {
@@ -565,6 +725,24 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     particles.material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0,1,0),-SILO_DECK_Y)];
     scene.add(particles);
 
+    // Smoke is owned by the scene, never by the 6.8-second launch timeline.
+    // Each puff has a birth timestamp and can linger for another 12 seconds.
+    const smokeTexture=createSmokeTexture();
+    const smokeSlotCount=lowDetail?28:72;
+    type SmokeSlot={sprite:THREE.Sprite;seed:SmokeSeed|null};
+    const smokeSlots:SmokeSlot[]=Array.from({length:smokeSlotCount},()=>{
+      const mat=new THREE.SpriteMaterial({
+        map:smokeTexture,color:0xd4ded5,transparent:true,opacity:0,
+        depthWrite:false,depthTest:true,
+      });
+      const sprite=new THREE.Sprite(mat);
+      sprite.visible=false;
+      scene.add(sprite);
+      return {sprite,seed:null};
+    });
+    let smokeCursor=0;
+    let smokeLastSpawn=-Infinity;
+
     function resize() {
       const width = Math.max(1, host!.clientWidth);
       const height = Math.max(1, host!.clientHeight);
@@ -621,6 +799,29 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       warmBurst.intensity = plumeVisible ? 6.4 * cinematicFlare : 0;
       warmBurst.position.set(0, Math.max(.5,emissionY), 0);
       lowerBayLight.intensity = 2.1 + (plumeVisible ? 3.7 * cinematicFlare : 0);
+      // Emit only while the prop is visible and clear of the floor.
+      // Previously born smoke continues to age, drift, and dissipate in standby.
+      if (!reduced && plumeVisible && timestamp-smokeLastSpawn>=SMOKE_EMIT_INTERVAL_MS) {
+        const slot=smokeSlots[smokeCursor++%smokeSlots.length];
+        slot.seed={
+          bornAt:timestamp,
+          x:Math.sin(timestamp*.0021)*.12,
+          y:emissionY+.30,
+          z:Math.cos(timestamp*.0017)*.11,
+          size:.46+(smokeCursor%5)*.07,
+          phase:smokeCursor*2.39996,
+        };
+        smokeLastSpawn=timestamp;
+      }
+      for(const slot of smokeSlots) {
+        if(!slot.seed||reduced){slot.sprite.visible=false;continue;}
+        const smoke=evolveSmoke(slot.seed,timestamp);
+        slot.sprite.visible=smoke.alive && smoke.alpha>.004;
+        if(!smoke.alive){slot.seed=null;continue;}
+        slot.sprite.position.set(smoke.x,smoke.y,smoke.z);
+        slot.sprite.scale.set(smoke.size,smoke.size*.9,1);
+        (slot.sprite.material as THREE.SpriteMaterial).opacity=smoke.alpha;
+      }
       exhaustMaterial.opacity = cinematicFlare * .92;
       flameCoreMaterial.opacity = cinematicFlare * .98;
       flameHaloMaterial.opacity = cinematicFlare * .38;
@@ -675,7 +876,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       reducedQuery.removeEventListener('change', onReduced);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       scene.traverse(object => {
-        if (!(object instanceof THREE.Mesh || object instanceof THREE.Points)) return;
+        if(object instanceof THREE.Sprite){
+          object.material.dispose();
+          return;
+        }
+        if (!(object instanceof THREE.Mesh || object instanceof THREE.Points ||
+              object instanceof THREE.Line)) return;
         object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) material.dispose();
@@ -684,7 +890,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hazardTexture.dispose();
       stencilTexture.dispose();
       steelTexture.dispose();
-      warningTexture.dispose();
+      moonGlowTexture.dispose();
+      moonSurface.dispose();
+      groundTexture.dispose();
+      triangleTexture.dispose();
+      squareTexture.dispose();
+      smokeTexture.dispose();
       flareTexture.dispose();
       flareMaterial.dispose();
       renderer.dispose();
