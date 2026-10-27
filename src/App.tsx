@@ -158,7 +158,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, onLaunch, launchedAgentId, liveMode, operationsMode, setOperationsMode,
+  onSelectCategory, onLaunch, launchedAgentId, launchPending, liveMode, operationsMode, setOperationsMode,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -169,6 +169,7 @@ function CommandDeck({
   onSelectCategory: (category: AgentCategory) => void;
   onLaunch: () => void;
   launchedAgentId: string | null;
+  launchPending: boolean;
   liveMode: boolean;
   operationsMode: OperationsMode;
   setOperationsMode: (value: OperationsMode) => void;
@@ -251,10 +252,10 @@ function CommandDeck({
           <button
             className="launch-button"
             type="button"
-            disabled={!objective.trim() || Boolean(launchedAgentId)}
+            disabled={!objective.trim() || Boolean(launchedAgentId) || launchPending}
             onClick={onLaunch}
           >
-            <span>{launchedAgentId ? 'DEPLOYING...' : liveMode ? 'START LIVE MISSION' : 'LAUNCH DEMO AGENT'}</span>
+            <span>{launchPending ? 'SUBMITTING MISSION...' : launchedAgentId ? 'OPENING HATCHES...' : liveMode ? 'START LIVE MISSION' : 'LAUNCH DEMO AGENT'}</span>
             {launchedAgentId ? <Activity size={18} /> : <ArrowUpRight size={20} />}
           </button>
         </div>
@@ -361,6 +362,7 @@ export default function App() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
+  const [launchPending, setLaunchPending] = useState(false);
   const [launchSignal, setLaunchSignal] = useState(0);
   const [launchPlaying, setLaunchPlaying] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -461,11 +463,12 @@ export default function App() {
   }
 
   async function launch() {
-    if (!objective.trim() || launchedAgentId) return;
+    if (!objective.trim() || launchedAgentId || launchPending) return;
     if (liveMode) {
-      setLaunchedAgentId(selectedAgent.id);
+      setLaunchPending(true);
       try {
         const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general');
+        setLaunchedAgentId(selectedAgent.id);
         setMissions(previous => [mission, ...previous].slice(0,50));
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
         setSelectedMissionId(mission.id);
@@ -475,6 +478,8 @@ export default function App() {
       } catch(error) {
         setLaunchedAgentId(null);
         setNotice(error instanceof Error ? error.message : 'Live launch failed.');
+      } finally {
+        setLaunchPending(false);
       }
       return;
     }
@@ -609,7 +614,7 @@ export default function App() {
           <>
             <div className="canvas-labels"><span><Compass size={14} /> THE DEPLOYMENT FIELD</span><span><span className="legend-item"><i className="legend-idle" /> STANDBY</span><span className="legend-item"><i className="legend-active" /> SELECTED</span><span className="legend-item"><i className="legend-running" /> ACTIVE</span></span></div>
             <ArrayCanvas selectedAgentId={selectedAgentId} launchedAgentId={launchedAgentId} missions={missions} onSelect={setSelectedAgentId} launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
-            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
+            <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory} objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy} onSelectCategory={selectCategory} onLaunch={() => {void launch();}} launchedAgentId={launchedAgentId} launchPending={launchPending} liveMode={liveMode} operationsMode={operationsMode} setOperationsMode={setOperationsMode}/>
           </>
         ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
