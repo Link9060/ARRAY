@@ -244,7 +244,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x080f12, .027);
-    const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
+    const camera = new THREE.PerspectiveCamera(37, 1, .1, 225);
     scene.add(new THREE.HemisphereLight(0x607c92, 0x100f08, .78));
     // Background follows only camera orientation, like a distant outdoor sky.
     // The camera looks downward at the bay, so world-positioned stars were out of frame.
@@ -305,7 +305,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       const x=((i*13)%53-26)*.69+Math.sin(i*1.17)*.65;
       const z=-9.3-row*2.95-(i%5)*.4;
       const h=3+((i*19)%13)*.22;
-      transform.position.set(x,h*.21,z);
+      transform.position.set(x,.11+h*.21,z);
       transform.rotation.set(0,i*.17,Math.sin(i*2.45)*.025);
       transform.scale.set(.6,h*.42,.6);
       transform.updateMatrix();
@@ -316,7 +316,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         const mesh=foliage[index], idx=foliageIndices[index]++;
         const p=j/clusters,spread=(1-p)*(.62+(i%4)*.07);
         const angle=j*2.399+i*.69;
-        transform.position.set(x+Math.cos(angle)*spread,h*(.47+.51*p),z+Math.sin(angle)*spread);
+        transform.position.set(x+Math.cos(angle)*spread,.11+h*(.36+.57*p),z+Math.sin(angle)*spread);
         transform.rotation.set(j*.13,i*.7+j*.33,j*.09);
         transform.scale.set(.43+(1-p)*.24,.52+(1-p)*.20,.42+(1-p)*.22);
         transform.updateMatrix();
@@ -364,20 +364,21 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     armor.bumpMap=steelTexture;
     armor.bumpScale=.035;
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(13,13),
+      new THREE.PlaneGeometry(180,180),
       new THREE.MeshStandardMaterial({color:0x10150f,roughness: .95,metalness: .11,bumpMap:steelTexture,bumpScale:.028}),
     );
     ground.rotation.x=-Math.PI/2;
-    ground.position.y=-3.35;
+    ground.position.y=-9.2;
     ground.receiveShadow=true;
     scene.add(ground);
     // A continuous concrete surface with a hole makes the bay feel recessed
     // into the installation rather than perched on a display pedestal.
     const groundTexture=createGroundTexture();
+    groundTexture.repeat.set(38,38);
     const floorDeck = new THREE.Mesh(
-      new THREE.RingGeometry(1.69, 14, 112),
+      new THREE.RingGeometry(1.15, 105, 144, 8),
       new THREE.MeshStandardMaterial({
-        color:0x555b52, metalness:.09, roughness:.97,
+        color:0x73776a, metalness:.08, roughness:.98,
         map:groundTexture,bumpMap:groundTexture,bumpScale:.13,side:THREE.DoubleSide,
       }),
     );
@@ -386,12 +387,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     floorDeck.receiveShadow=true;
     scene.add(floorDeck);
     const shaftWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.105, 1.105, 3.8, 80, 1, true),
+      new THREE.CylinderGeometry(1.105, 1.105, 9.1, 80, 1, true),
       new THREE.MeshStandardMaterial({
         color:0x141914,metalness:.35,roughness:.91,side:THREE.BackSide,
       }),
     );
-    shaftWall.position.y=-1.83;
+    shaftWall.position.y=-4.44;
     shaftWall.receiveShadow=true;
     scene.add(shaftWall);
     const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
@@ -419,7 +420,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const postMaterial=new THREE.MeshStandardMaterial({color:0x5d685f,metalness:.72,roughness:.47});
     // Leaning triangular radiation warning on the left.
     const leftSign=new THREE.Group();
-    leftSign.position.set(-2.78,.29,-1.95);
+    leftSign.position.set(-2.65,.11,-2.2);
+    leftSign.scale.setScalar(.58);
     leftSign.rotation.z=-.16;
     const leftPost=new THREE.Mesh(postGeometry,postMaterial);
     leftPost.position.y=.76;leftSign.add(leftPost);
@@ -436,7 +438,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     scene.add(leftSign);
     // Squarer, upright yellow warning placard.
     const rightSign=new THREE.Group();
-    rightSign.position.set(2.85,.29,-1.96);
+    rightSign.position.set(2.75,.11,-2.2);
+    rightSign.scale.setScalar(.61);
     const rightPost=new THREE.Mesh(postGeometry,postMaterial);
     rightPost.position.y=.78;rightSign.add(rightPost);
     const rectangleBacking=new THREE.Mesh(new THREE.BoxGeometry(1.35,1.25,.07),backingMaterial);
@@ -447,47 +450,6 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     rightSign.add(squareFace);
     scene.add(rightSign);
 
-    // Decorative distant wire line (silhouette only), safely outside the bay.
-    const wireMaterial=new THREE.LineBasicMaterial({color:0x63736b,transparent:true,opacity:.57});
-    for (const height of [1.3,1.63]) {
-      const points:THREE.Vector3[]=[];
-      for(let i=0;i<=80;i++){
-        const x=-9+i*18/80;
-        points.push(new THREE.Vector3(x,height+Math.sin(i*.5)*.018,-5.8));
-      }
-      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),wireMaterial));
-    }
-    for(let i=0;i<8;i++){
-      const x=-8.75+i*2.5;
-      const post=new THREE.Mesh(new THREE.BoxGeometry(.06,1.68,.08),postMaterial);
-      post.position.set(x,.87,-5.8);scene.add(post);
-    }
-    // Repeating crossed glints read as distant barbs, not functional barrier details.
-    const barbs:THREE.Vector3[]=[];
-    for(let i=0;i<46;i++){
-      const x=-8.9+i*.39;
-      for(const y of [1.3,1.63]){
-        barbs.push(new THREE.Vector3(x-.055,y-.05,-5.8),new THREE.Vector3(x+.055,y+.05,-5.8));
-        barbs.push(new THREE.Vector3(x-.055,y+.05,-5.8),new THREE.Vector3(x+.055,y-.05,-5.8));
-      }
-    }
-    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(barbs),wireMaterial));
-
-    // Pebbles and surface debris break up the perfect circular concrete floor.
-    const gravelGeometry=new THREE.IcosahedronGeometry(1,0);
-    const gravelMat=new THREE.MeshStandardMaterial({color:0x464c44,roughness:1});
-    const gravel=new THREE.InstancedMesh(gravelGeometry,gravelMat,115);
-    for(let i=0;i<115;i++){
-      const angle=i*2.39996;
-      const radius=2.1+(i*31%91)/91*6.2;
-      const dummy=new THREE.Object3D();
-      dummy.position.set(Math.cos(angle)*radius,.104,Math.sin(angle)*radius);
-      dummy.rotation.set(i*.37,i*.81,i*.25);
-      dummy.scale.set(.018+(i%7)*.012,.006+(i%4)*.005,.026+(i%9)*.011);
-      dummy.updateMatrix();gravel.setMatrixAt(i,dummy.matrix);
-    }
-    gravel.instanceMatrix.needsUpdate=true;
-    scene.add(gravel);
     // Expansion seams belong to the surrounding concrete, not the bay itself.
     for (const side of [-1,1]) {
       for (let i=0;i<3;i++) {
@@ -511,12 +473,29 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     rim.position.y=.116;
     rim.receiveShadow=true;
     scene.add(rim);
-    const insetWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.09,1.09,1.7,80,1,true),
-      new THREE.MeshStandardMaterial({color:0x090c09,metalness:.4,roughness:.84,side:THREE.BackSide}),
-    );
-    insetWall.position.y=-.82;
-    scene.add(insetWall);
+    // Deep shaft with visible inset rings and practical interior light strips.
+    const shaftLights: THREE.PointLight[]=[];
+    for (let tier=0;tier<6;tier++) {
+      const y=-.35-tier*1.2;
+      const ring=new THREE.Mesh(
+        new THREE.TorusGeometry(1.06,.023,7,72),
+        new THREE.MeshStandardMaterial({color:0x61695b,metalness:.72,roughness:.34}),
+      );
+      ring.rotation.x=Math.PI/2;ring.position.y=y;scene.add(ring);
+      for (let side=0;side<4;side++) {
+        const a=side*Math.PI/2;
+        const strip=new THREE.Mesh(
+          new THREE.BoxGeometry(.085,.31,.035),
+          new THREE.MeshBasicMaterial({color:tier%2===0?0xb7b481:0x7f957a}),
+        );
+        strip.position.set(Math.sin(a)*1.035,y,Math.cos(a)*1.035);
+        strip.rotation.y=a;scene.add(strip);
+      }
+      if(tier%2===0) {
+        const light=new THREE.PointLight(0xb7ae78,.8,3.8);
+        light.position.set(0,y,0);scene.add(light);shaftLights.push(light);
+      }
+    }
     for (const [radius, height, material] of [
       [1.13, .127, caution],
       [1.46, .129, brushed],
