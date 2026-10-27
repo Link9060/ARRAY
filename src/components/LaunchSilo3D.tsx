@@ -9,9 +9,11 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<number | null>(null);
   const [available, setAvailable] = useState(true);
+  const repaintRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (launchSignal > 0) startedRef.current = performance.now();
+    repaintRef.current?.();
   }, [launchSignal]);
 
   useEffect(() => {
@@ -171,13 +173,14 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     resizeObserver.observe(host);
 
     const onVisibility = () => { visible = document.visibilityState === 'visible'; if (visible && !stopped) loop(); };
+    document.addEventListener('visibilitychange', onVisibility);
     const intersection = new IntersectionObserver(entries => {
       visible = entries[0]?.isIntersecting === true && document.visibilityState === 'visible';
       if (visible && !stopped) loop();
     }, { threshold: .01 });
     intersection.observe(host);
 
-    const onReduced = () => { reduced = reducedQuery.matches; if (reduced) renderFrame(performance.now()); };
+    const onReduced = () => { reduced = reducedQuery.matches; if (reduced) renderFrame(performance.now()); else loop(); };
     reducedQuery.addEventListener('change', onReduced);
     const onContextLost = (event: Event) => {
       event.preventDefault();
@@ -227,11 +230,13 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         loop();
       });
     }
+    repaintRef.current = () => renderFrame(performance.now());
     renderFrame(performance.now());
     loop();
 
     return () => {
       stopped = true;
+      repaintRef.current = null;
       cancelAnimationFrame(frameId);
       intersection.disconnect();
       resizeObserver.disconnect();
