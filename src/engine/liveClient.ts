@@ -95,6 +95,8 @@ interface ServerMission {
   agentId: string;
   objective: string;
   policy: ExecutionPolicy;
+  operationsMode?: 'general' | 'coding';
+  model?: string;
   status: MissionPhase;
   createdAt: number;
   startedAt?: number;
@@ -113,6 +115,8 @@ export function fromServerMission(remote: ServerMission): Mission {
     category:agent?.category || 'intelligence',
     objective:remote.objective,
     policy:remote.policy,
+    operationsMode:remote.operationsMode,
+    model:remote.model,
     phase:status,
     isDemo:false,
     createdAt:remote.createdAt,
@@ -122,10 +126,10 @@ export function fromServerMission(remote: ServerMission): Mission {
     error:remote.error,
   };
 }
-export async function launchLiveMission(agentId:string, objective:string, policy: ExecutionPolicy): Promise<Mission> {
+export async function launchLiveMission(agentId:string, objective:string, policy: ExecutionPolicy, operationsMode: 'general' | 'coding' = 'general'): Promise<Mission> {
   const response = await request<{mission:ServerMission}>('/api/array/missions', {
     method:'POST',
-    body:JSON.stringify({agentId, objective, policy}),
+    body:JSON.stringify({agentId, objective, policy, operationsMode}),
   });
   return fromServerMission(response.mission);
 }

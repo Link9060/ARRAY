@@ -1,5 +1,6 @@
 export type MissionPhase = 'queued' | 'deploying' | 'running' | 'waiting_approval' | 'succeeded' | 'failed' | 'canceled';
 export type ExecutionPolicy = 'review' | 'assist' | 'authorized';
+export type OperationsMode = 'general' | 'coding';
 
 export interface Mission {
   id: string;
@@ -8,6 +9,8 @@ export interface Mission {
   category: string;
   objective: string;
   policy: ExecutionPolicy;
+  operationsMode?: OperationsMode;
+  model?: string;
   phase: MissionPhase;
   createdAt: number;
   finishedAt?: number;

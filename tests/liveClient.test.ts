@@ -11,7 +11,9 @@ describe('ARRAY live mission adapter', () => {
   });
   const raw = {
     id:'server-123',
-    agentId:'scout',
+    agentId:'operations-03',
+    operationsMode:'coding' as const,
+    model:'@cf/qwen/qwen3.8-27b',
     objective:'Summarize a provided article',
     policy:'review' as const,
     status:'queued' as const,
@@ -21,7 +23,9 @@ describe('ARRAY live mission adapter', () => {
     const mission = fromServerMission(raw);
     expect(mission.isDemo).toBe(false);
     expect(mission.phase).toBe('queued');
-    expect(mission.agentName).toBe('Scout');
+    expect(mission.agentName).toBe('Operations 03');
+    expect(mission.operationsMode).toBe('coding');
+    expect(mission.model).toBe('@cf/qwen/qwen3.8-27b');
     expect(isActiveMission(mission.phase)).toBe(true);
     expect(phaseLabel(mission.phase)).toBe('Queued');
     expect(isLiveAuthenticated()).toBe(false);
