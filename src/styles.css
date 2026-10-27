@@ -527,3 +527,116 @@ h1 span { color:#a8b5d2; font-weight:400; }
 @media (max-width: 470px) {
   .formation-grid--dual { column-gap: 6px; }
 }
+
+
+/* ARRAY three-dimensional signal bay: display-only visual language. */
+.array-canvas--dual { isolation:isolate; }
+.array-canvas--dual .formation-grid--dual { z-index:2; pointer-events:none; }
+.array-canvas--dual .formation { pointer-events:auto; }
+.array-canvas--dual .core-shortcut {
+  top:45px;
+  transform:translate(-50%,-50%) scale(.39);
+  z-index:4;
+}
+.array-canvas--dual .core-shortcut:hover .core-inner,
+.array-canvas--dual .core-shortcut:focus-visible .core-inner {
+  transform:translateX(-50%) scale(1.08);
+}
+.silo-stage {
+  position:absolute;
+  z-index:1;
+  left:50%;
+  top:51%;
+  transform:translate(-50%,-50%);
+  width:clamp(225px,30vw,370px);
+  height:380px;
+  display:flex;
+  flex-direction:column;
+  pointer-events:none;
+  color:#c8dbf6;
+}
+.silo-stage::before {
+  position:absolute;inset:28px 0 36px;content:'';
+  background:radial-gradient(ellipse at 50% 63%, #26618b31, #10213722 40%, transparent 73%);
+  filter:blur(12px);
+  pointer-events:none;
+}
+.silo-stage-topline,.silo-stage-bottomline {
+  position:relative;z-index:2;
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:0 6px;
+  font:8px var(--mono);
+  letter-spacing:.115em;
+  color:#7e9db7;
+}
+.silo-stage-topline span:last-child {color:#4b6d88;}
+.silo-stage-bottomline {
+  padding:0 7px;
+  min-height:31px;
+  color:#98adc4;
+}
+.silo-three-layer { position:relative; width:100%; flex:1; min-height:0; }
+.silo-three-mount,.silo-three-mount canvas {
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:0;
+}
+.silo-three-mount {position:absolute;inset:0;}
+.silo-three-mount canvas {object-fit:contain;}
+.silo-stage-state {display:flex;align-items:center;gap:7px;white-space:nowrap;}
+.silo-stage-light {width:5px;height:5px;border-radius:100%;background:#6c98a6;box-shadow:0 0 7px #8ec5d64f;}
+.silo-stage-state.active .silo-stage-light {
+  background:#a7f1ff;
+  box-shadow:0 0 13px #93e5ffaa;
+  animation:silo-light-pulse .5s ease-in-out infinite alternate;
+}
+@keyframes silo-light-pulse {to{opacity:.35;}}
+.silo-stage-preview {
+  pointer-events:auto;
+  display:flex;gap:7px;align-items:center;justify-content:center;
+  color:#c8e8f8;background:#162c3bd9;
+  border:1px solid #4b7794;
+  border-radius:5px;
+  padding:8px 10px;
+  font:9px var(--mono);
+  letter-spacing:.09em;
+  transition:background .18s, border-color .18s;
+}
+.silo-stage-preview:hover {background:#254861;border-color:#92d8fa;}
+.silo-stage-preview:focus-visible {outline:2px solid #aedfff;outline-offset:3px;}
+.silo-webgl-fallback {
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:16px;
+  color:#8499b7;font:9px var(--mono);letter-spacing:.1em;
+}
+.silo-fallback-rings {
+  position:absolute;left:50%;top:51%;width:145px;height:63px;
+  border:1px solid #477d9c88;border-radius:50%;transform:translate(-50%,-50%);
+  box-shadow:0 0 0 19px #75bfe50b,0 0 0 52px #75bfe505;
+}
+.silo-fallback-symbol {font-size:46px;color:#add9e8;}
+.silo-webgl-fallback span:last-child {margin-top:65px;}
+@media(max-width:980px) {
+  .silo-stage {width:clamp(190px,31vw,300px);height:330px;}
+}
+@media(max-width:730px) {
+  .array-canvas--dual {min-height:720px;}
+  .array-canvas--dual .formation-grid--dual {
+    min-height:720px;
+    padding:365px 10px 42px;
+    align-items:start;
+  }
+  .array-canvas--dual .core-shortcut {top:43px;transform:translate(-50%,-50%) scale(.34);}
+  .silo-stage {top:196px;height:286px;width:min(310px,80vw);}
+  .silo-stage-topline,.silo-stage-bottomline {font-size:7px;}
+  .silo-stage-preview {min-height:35px;font-size:8px;}
+}
+@media(max-width:470px) {
+  .array-canvas--dual {min-height:755px;}
+  .array-canvas--dual .formation-grid--dual {min-height:755px;padding-top:359px;}
+  .silo-stage {top:196px;height:284px;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .silo-stage-state.active .silo-stage-light {animation:none;}
+}
