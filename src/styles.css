@@ -1293,3 +1293,35 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 @media(prefers-reduced-motion:reduce) {
   .silo-stage {filter:none;}
 }
+
+
+/* Continuous inspection-bay presentation. The WebGL environment fades into
+   the real command canvas instead of ending at a hard rectangular viewport. */
+.silo-stage {
+  filter:none;
+  isolation:isolate;
+}
+.silo-stage::before {
+  background:
+    radial-gradient(ellipse 54% 58% at 50% 57%, rgba(91,97,69,.095), transparent 95%);
+  filter:blur(22px);
+}
+.silo-three-mount {
+  -webkit-mask-image:radial-gradient(ellipse 88% 84% at 50% 53%,#000 39%,rgba(0,0,0,.92) 58%,transparent 100%);
+  mask-image:radial-gradient(ellipse 88% 84% at 50% 53%,#000 39%,rgba(0,0,0,.92) 58%,transparent 100%);
+}
+.silo-three-mount::after {
+  background:
+    radial-gradient(ellipse 62% 64% at 50% 48%,transparent 46%,rgba(4,8,5,.18) 90%,rgba(4,8,5,.36) 100%);
+}
+.silo-stage-topline,.silo-stage-bottomline {
+  background:rgba(19,23,18,.81);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+@media(max-width:730px) {
+  .silo-three-mount {
+    -webkit-mask-image:radial-gradient(ellipse 91% 85% at 50% 53%,#000 38%,rgba(0,0,0,.92) 58%,transparent 100%);
+    mask-image:radial-gradient(ellipse 91% 85% at 50% 53%,#000 38%,rgba(0,0,0,.92) 58%,transparent 100%);
+  }
+}
