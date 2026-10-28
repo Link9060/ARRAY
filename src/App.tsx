@@ -1,18 +1,20 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
   Radar, Radio, ShieldCheck, Sparkles, X, Play, Wifi, LogIn, LogOut, WifiOff,
   Search, Download, AlertTriangle, Activity, Server, SlidersHorizontal, ClipboardList,
+  Bell, BellOff, CheckCircle2, AlertCircle, ArrowRight,
 } from 'lucide-react';
 import { AGENTS, CATEGORIES, getAgentsForCategory, modelForSelection, type Agent, type AgentCategory, type OperationsMode } from './data/agents';
 import {
   DEMO_RUN_MS, advanceDemoMission, cancelDemoMission, createDemoMission,
   formatDuration, isActiveMission, phaseLabel,
-  type ExecutionPolicy, type Mission,
+  type ExecutionPolicy, type Mission, type MissionPhase,
 } from './engine/mission';
 import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 import { missionEvents, missionStatus } from './engine/missionEvents';
+import { missionEndMessage, missionEndTransitions } from './engine/completionAlerts';
 import LaunchSilo3D from './components/LaunchSilo3D';
 import DeploymentConsole from './components/DeploymentConsole';
 import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
@@ -22,6 +24,8 @@ import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLive
 import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
 
 type View = 'array' | 'monitor';
+type CompletionSignal = { mission: Mission; observedAt: number };
+const ALERT_PREF = 'ravin-array-completion-alerts-v1';
 const CHAT_URL = import.meta.env.VITE_RAVIN_CHAT_URL || 'https://enterarrow.com/ravin';
 
 function BrandMark() {
@@ -286,6 +290,7 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
 function MonitorView({
   missions, now, selectedMissionId, setSelectedMissionId,
   onCancel, onGoToArray, onTestLaunch, liveConnected, cloudReady,
+  completionSignal, onDismissCompletion, notificationsEnabled, onToggleNotifications,
 }: {
   missions: Mission[];
   now: number;
@@ -296,6 +301,10 @@ function MonitorView({
   onTestLaunch: () => void;
   liveConnected: boolean;
   cloudReady: boolean;
+  completionSignal: CompletionSignal | null;
+  onDismissCompletion: () => void;
+  notificationsEnabled: boolean;
+  onToggleNotifications: () => void;
 }) {
   const [search,setSearch] = useState('');
   const [filter,setFilter] = useState<MissionFilter>('all');
@@ -322,6 +331,18 @@ function MonitorView({
     operations:missions.filter(m => m.category === 'operations' && isActiveMission(m.phase)).length,
   };
 
+  function openCompletedMission() {
+    const done = completionSignal?.mission;
+    if (!done) return;
+    // A completed task must be visible even if the register was filtered.
+    setSearch('');
+    setFilter('all');
+    setChannel('both');
+    setDivision('all');
+    setSelectedMissionId(done.id);
+    onDismissCompletion();
+  }
+
   function exportVisibleMissions() {
     if(!visible.length)return;
     const json = makeMissionExport(visible,Date.now());
@@ -345,11 +366,55 @@ function MonitorView({
         </div>
         <div className="ops-head-actions">
           <div className="ops-clock"><Clock3 size={13}/><span>{new Date(now).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><small>LOCAL</small></div>
+          <button type="button" className={'ops-action ops-notify-toggle'+(notificationsEnabled?' enabled':'')}
+            onClick={onToggleNotifications} aria-pressed={notificationsEnabled}
+            title="Optional browser alerts while ARRAY is open; your browser may require permission">
+            {notificationsEnabled?<Bell size={14}/>:<BellOff size={14}/>}
+            ALERTS {notificationsEnabled?'ON':'OFF'}
+          </button>
           <button type="button" className="ops-action ops-action-demo" onClick={onTestLaunch}><Play size={14}/> NEW DEMO <span>SIM</span></button>
           <button type="button" className="ops-action ops-action-return" onClick={onGoToArray}><ArrowLeft size={14}/> LAUNCH DESK</button>
         </div>
       </div>
 
+
+      {completionSignal && (
+        <div className={'ops-completion-announcement'+(completionSignal.mission.phase === 'failed'?' is-failed':'')}
+          key={completionSignal.mission.id+':'+completionSignal.observedAt} role="status" aria-live="polite">
+          <div className="ops-completion-emblem">
+            <span className="ops-completion-ring"/>
+            {completionSignal.mission.phase==='failed'?<AlertCircle size={27}/>:<CheckCircle2 size={29}/>}
+          </div>
+          <div className="ops-completion-copy">
+            <span className="ops-completion-eyebrow">
+              {completionSignal.mission.isDemo?'SIMULATION / END OF SEQUENCE':'RAVIN / REPORTED TASK STATUS'}
+            </span>
+            <strong>{completionSignal.mission.phase==='failed'?'MISSION INTERRUPTED':
+              completionSignal.mission.isDemo?'SIMULATION COMPLETE':'MISSION COMPLETE'}</strong>
+            <p>{completionSignal.mission.agentName} <span>/</span> {completionSignal.mission.objective}</p>
+            <small>{completionSignal.mission.isDemo
+              ? 'Demonstration finished. No AI work was performed.'
+              : completionSignal.mission.phase==='failed'
+                ? 'RAVIN reported a failure. Inspect the recorded error.'
+                : completionSignal.mission.output
+                  ? 'RAVIN reported success. Text result received.'
+                  : 'RAVIN reported success. No text result was included.'}
+            </small>
+          </div>
+          <div className="ops-completion-actions">
+            <button type="button" className="ops-completion-open" onClick={openCompletedMission}>
+              VIEW DOSSIER <ArrowRight size={15}/>
+            </button>
+            <button type="button" className="ops-completion-close" onClick={onDismissCompletion}
+              aria-label="Dismiss mission completion announcement"><X size={16}/></button>
+          </div>
+        </div>
+      )}
+      <div className="ops-notification-note">
+        <Bell size={12}/> {notificationsEnabled
+          ? 'Browser alerts enabled while this ARRAY page is running. Notifications distinguish live RAVIN results from demos.'
+          : 'Enable browser alerts to be notified when a tracked task completes. The page must remain open.'}
+      </div>
       <div className="ops-connection-strip">
         <div><span className={liveConnected?'ops-dot ready':'ops-dot'}/><span>RAVIN SERVICE</span><strong>{liveConnected?'AUTHENTICATED':'NOT CONNECTED'}</strong></div>
         <div><span className={cloudReady?'ops-dot ready':'ops-dot'}/><span>MISSION ARCHIVE</span><strong>{cloudReady?'SYNC ACTIVE':'LOCAL RECORDS'}</strong></div>
@@ -379,6 +444,14 @@ function MonitorView({
               <span className="ops-cap-meta">VISUAL ROUTES ONLY <span className="ops-online-dot"/></span>
             </div>
             <div className="ops-network-shell">
+              {completionSignal && now-completionSignal.observedAt < 7500 && (
+                <div className={'ops-arrival-overlay'+(completionSignal.mission.phase==='failed'?' failed':'')}
+                  aria-hidden="true">
+                  <span className="ops-arrival-pulse"/>
+                  <span className="ops-arrival-text">{completionSignal.mission.isDemo?'SIM ROUTE ENDED':
+                    completionSignal.mission.phase==='failed'?'TASK FAILED':'TASK COMPLETED'}</span>
+                </div>
+              )}
               <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null}
                 onSelect={setSelectedMissionId} now={now}/>
             </div>
@@ -471,6 +544,14 @@ export default function App() {
   const [policy, setPolicy] = useState<ExecutionPolicy>('review');
   const [instructions, setInstructions] = useState('');
   const [missions, setMissions] = useState<Mission[]>([]);
+  const previousPhases = useRef<Map<string,MissionPhase>>(new Map());
+  const [completionSignal,setCompletionSignal] = useState<CompletionSignal|null>(null);
+  const [notificationsEnabled,setNotificationsEnabled] = useState(()=>{
+    try {
+      return typeof Notification!=='undefined' && Notification.permission==='granted' &&
+        window.localStorage.getItem(ALERT_PREF)==='on';
+    } catch { return false; }
+  });
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [launchedAgentId, setLaunchedAgentId] = useState<string | null>(null);
   const [launchPending, setLaunchPending] = useState(false);
@@ -489,6 +570,56 @@ export default function App() {
   const [liveError, setLiveError] = useState('');
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudError, setCloudError] = useState('');
+
+  useEffect(() => {
+    const transitions=missionEndTransitions(previousPhases.current,missions);
+    previousPhases.current = new Map(missions.map(m => [m.id,m.phase]));
+    if(!transitions.length)return;
+    const latest=transitions[0];
+    setCompletionSignal({mission:latest,observedAt:Date.now()});
+    setSelectedMissionId(latest.id);
+    if(!notificationsEnabled || typeof Notification==='undefined' ||
+       Notification.permission!=='granted')return;
+    // No notification is sent for already-completed history loaded at sign-in.
+    for(const mission of transitions){
+      const {title,body}=missionEndMessage(mission);
+      try {
+        const notification=new Notification(title,{body,tag:'array-task-'+mission.id});
+        notification.onclick=()=>{
+          window.focus();
+          setSelectedMissionId(mission.id);
+          setView('monitor');
+          notification.close();
+        };
+      } catch {
+        // Browser/system blocked notification, but the in-page result still appears.
+      }
+    }
+  },[missions,notificationsEnabled]);
+
+  async function toggleCompletionAlerts() {
+    if(notificationsEnabled) {
+      setNotificationsEnabled(false);
+      try {window.localStorage.removeItem(ALERT_PREF);}catch {/* storage is optional */}
+      return;
+    }
+    if(typeof Notification==='undefined' || !window.isSecureContext) {
+      setNotice('This browser does not support page notifications in this context.');
+      return;
+    }
+    // Request permission only in the direct click handler, never on page load.
+    let permission:NotificationPermission;
+    try {permission=await Notification.requestPermission();}
+    catch {setNotice('Browser notification request was unavailable.');return;}
+    if(permission!=='granted') {
+      setNotificationsEnabled(false);
+      setNotice('Notifications were not enabled. Check your browser site permissions.');
+      return;
+    }
+    setNotificationsEnabled(true);
+    try {window.localStorage.setItem(ALERT_PREF,'on');}catch {/* optional */}
+    setNotice('Mission alerts enabled while ARRAY remains open.');
+  }
 
   const selectedAgent = AGENTS.find((agent) => agent.id === selectedAgentId) ?? AGENTS[0];
   const activeCount = missions.filter((mission) => isActiveMission(mission.phase)).length;
@@ -762,7 +893,9 @@ export default function App() {
               </div>
             </div>
           </>
-        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={returnToArray} onTestLaunch={launchTest} liveConnected={liveConnected} cloudReady={cloudReady}/>}
+        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={returnToArray} onTestLaunch={launchTest} liveConnected={liveConnected} cloudReady={cloudReady}
+          completionSignal={completionSignal} onDismissCompletion={()=>setCompletionSignal(null)}
+          notificationsEnabled={notificationsEnabled} onToggleNotifications={()=>{void toggleCompletionAlerts();}}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
       </main>
       {loginOpen && <div className="live-login-backdrop" role="presentation" onClick={(event) => { if(event.target===event.currentTarget && !loginBusy)setLoginOpen(false); }}>
