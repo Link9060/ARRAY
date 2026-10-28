@@ -14,7 +14,8 @@ import GlobeTrajectoryMap from './components/GlobeTrajectoryMap';
 import { missionEvents, missionStatus } from './engine/missionEvents';
 import LaunchSilo3D from './components/LaunchSilo3D';
 import DeploymentConsole from './components/DeploymentConsole';
-import { SILO_SEQUENCE_MS } from './engine/siloAnimation';
+import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
+import { filterMissionRegister,makeMissionExport, type MissionFilter, type MissionOrder, type MissionChannel } from './engine/monitorFilters';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
 import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
@@ -350,6 +351,7 @@ export default function App() {
   const [launchPending, setLaunchPending] = useState(false);
   const [launchSignal, setLaunchSignal] = useState(0);
   const [launchPlaying, setLaunchPlaying] = useState(false);
+  const cameraSequence = activeLaunchSignal(launchSignal,launchPlaying);
   const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState('');
   const [liveMode, setLiveMode] = useState(false);
@@ -401,6 +403,13 @@ export default function App() {
   function previewSilo() {
     setLaunchSignal(previous => previous + 1);
     setLaunchPlaying(true);
+  }
+  function returnToArray() {
+    // A historical signal must never replay a launch when the camera remounts.
+    setLaunchPlaying(false);
+    setLaunchSignal(0);
+    setLaunchedAgentId(null);
+    setView('array');
   }
 
   useEffect(() => {
@@ -572,7 +581,7 @@ export default function App() {
     <div className="app-shell">
       <div className="ambient ambient-one" aria-hidden="true" /><div className="ambient ambient-two" aria-hidden="true" />
       <header className="site-header">
-        <a className="brand" href="#top" onClick={(event) => { event.preventDefault(); setView('array'); }} aria-label="RAVIN ARRAY, go to launch view">
+        <a className="brand" href="#top" onClick={(event) => { event.preventDefault(); returnToArray(); }} aria-label="RAVIN ARRAY, go to launch view">
           <BrandMark />
           <span className="brand-text"><strong>RAVIN <span>/ ARRAY</span></strong><small>RESONANT INTELLIGENCE NETWORK</small></span>
         </a>
@@ -582,7 +591,7 @@ export default function App() {
       <main id="top" className="main-content">
         <div className="intro-row">
           <div><div className="section-kicker"><span className="section-kicker-line" /> MISSION CONTROL / SIMULATED INTERFACE <span className="alpha-index">/ 001</span></div><h1>RAVIN <span>ARRAY</span><span className="title-period">.</span></h1><p className="intro-tagline">Task command interface. <span>Coordinate the RAVIN network.</span></p></div>
-          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={() => setView('array')} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
+          <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={returnToArray} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
           <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
@@ -621,14 +630,14 @@ export default function App() {
                   setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
               </aside>
               <div className="array-station-right">
-                <ArrayCanvas launchSignal={launchSignal} launchPlaying={launchPlaying} onPreview={previewSilo} />
+                <ArrayCanvas launchSignal={cameraSequence} launchPlaying={launchPlaying} onPreview={previewSilo} />
                 <DeploymentConsole selectedAgent={selectedAgent.name} objectiveReady={Boolean(objective.trim())}
-                  launchSignal={launchSignal} launchPlaying={launchPlaying} launchPending={launchPending}
+                  launchSignal={cameraSequence} launchPlaying={launchPlaying} launchPending={launchPending}
                   liveMode={liveMode} onPreview={previewSilo} onDispatch={() => {void launch();}} />
               </div>
             </div>
           </>
-        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={() => setView('array')} onTestLaunch={launchTest}/>}
+        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={returnToArray} onTestLaunch={launchTest}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
       </main>
       {loginOpen && <div className="live-login-backdrop" role="presentation" onClick={(event) => { if(event.target===event.currentTarget && !loginBusy)setLoginOpen(false); }}>
