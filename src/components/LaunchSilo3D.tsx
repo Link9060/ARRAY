@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { safeAccessPath } from '../engine/siloFloor';
 import { evolveSmoke, SMOKE_EMIT_INTERVAL_MS, type SmokeSeed } from '../engine/smokeTrail';
 import {
   siloPose, siloModelY, siloModelVisible, siloCameraLift, siloExitOffset, siloVisualAlert, SILO_SEQUENCE_MS,
@@ -385,15 +386,26 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     grass.position.y=.091;
     grass.receiveShadow=true;
     scene.add(grass);
-    // An offset approach path meets the main bay from the lower left of frame.
-    const accessPath = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.4,23),
-      new THREE.MeshStandardMaterial({color:0x44483d,metalness:.04,roughness:.93,
-        map:groundTexture,bumpMap:groundTexture,bumpScale:.035}),
+    // Finite road ending OUTSIDE the circular aperture. The original 23-unit
+    // rectangle extended over the bay and created the opaque 'invisible plane'
+    // through which the rising model appeared to clip.
+    const roadCorners=safeAccessPath(
+      {x:-8.5,z:10.5}, {x:-2.7,z:2.4}, 2.15, .107,
     );
-    accessPath.rotation.x=-Math.PI/2;
-    accessPath.rotation.z=-.72;
-    accessPath.position.set(-6.3,.107,6.7);
+    const roadGeometry=new THREE.BufferGeometry();
+    roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadCorners,3));
+    roadGeometry.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,8,0,8],2));
+    // CCW from above: normals face the camera's sky, never the underground shaft.
+    roadGeometry.setIndex([0,2,1,0,3,2]);
+    roadGeometry.computeVertexNormals();
+    const accessPath = new THREE.Mesh(
+      roadGeometry,
+      new THREE.MeshStandardMaterial({
+        color:0x44483d,metalness:.04,roughness:.93,
+        map:groundTexture,bumpMap:groundTexture,bumpScale:.035,
+        side:THREE.DoubleSide,
+      }),
+    );
     accessPath.receiveShadow=true;
     scene.add(accessPath);
     // Secondary decorative bay at the lower-left edge of the camera.
