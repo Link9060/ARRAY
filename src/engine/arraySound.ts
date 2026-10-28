@@ -90,6 +90,25 @@ export class ArraySoundController {
     },35);
     this.timers.add(id);
   }
+  /** Smoothly release a long sound without cutting it off at view transitions. */
+  fadeCue(cue:ArrayCue,durationMs=1200){
+    for(const audio of [...this.playing]){
+      if(audio.dataset.arrayCue!==cue)continue;
+      const startingVolume=audio.volume;
+      const started=Date.now();
+      const interval=setInterval(()=>{
+        const progress=Math.min(1,(Date.now()-started)/Math.max(1,durationMs));
+        audio.volume=startingVolume*(1-progress);
+        if(progress>=1){
+          clearInterval(interval);this.timers.delete(interval);
+          audio.pause();audio.currentTime=0;
+          this.playing.delete(audio);
+        }
+      },35);
+      this.timers.add(interval);
+    }
+  }
+
   stopAll(){
     for(const timer of this.timers) clearInterval(timer);
     this.timers.clear();
