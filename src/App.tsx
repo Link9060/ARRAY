@@ -387,7 +387,8 @@ export default function App() {
 
   useEffect(() => {
     if (!launchedAgentId) return;
-    const timer = window.setTimeout(() => { setLaunchedAgentId(null); setView('monitor'); }, SILO_SEQUENCE_MS + 260);
+    // Allow the one-shot 10-second alarm to complete and the blastoff tail to fade before switching views.
+    const timer = window.setTimeout(() => { setLaunchedAgentId(null); setView('monitor'); }, Math.max(SILO_SEQUENCE_MS + 260, 11_000));
     return () => window.clearTimeout(timer);
   }, [launchedAgentId]);
 
