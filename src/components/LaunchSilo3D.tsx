@@ -496,6 +496,12 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     shaftWall.position.y=-4.44;
     shaftWall.receiveShadow=true;
     scene.add(shaftWall);
+    // Illuminate the portion of the model visible down the shaft while the
+    // doors open. This replaces the previous dark void that looked like a pop.
+    const shaftInspection=new THREE.SpotLight(0xc6d1bd,4.3,7.5,.51,.91,1.1);
+    shaftInspection.position.set(-.74,.79,.67);
+    shaftInspection.target.position.set(0,-2,0);
+    scene.add(shaftInspection,shaftInspection.target);
     const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
     lowerBayLight.position.set(0,-.85,0);
     scene.add(lowerBayLight);
@@ -705,8 +711,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const hatchLeft=new THREE.Group();
     const hatchRight=new THREE.Group();
     const hatchRadius=1.105;
-    hatchLeft.position.set(-hatchRadius,.18,0);
-    hatchRight.position.set(hatchRadius,.18,0);
+    hatchLeft.position.set(-hatchRadius,.111,0);
+    hatchRight.position.set(hatchRadius,.111,0);
     function makeHalfDisc(left:boolean): THREE.ExtrudeGeometry {
       const shape=new THREE.Shape();
       if(left) {
@@ -748,7 +754,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     for(const x of [-hatchRadius,hatchRadius]) {
       const hinge=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.19,24),brushed);
       hinge.rotation.x=Math.PI/2;
-      hinge.position.set(x,.22,0);
+      hinge.position.set(x,.176,0);
       scene.add(hinge);
     }
 
@@ -856,7 +862,9 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     // clipping plane that made it suddenly appear at ground level.
     missile.scale.y = SILO_MODEL_SCALE_Y;
     missile.position.y = siloModelY(siloPose(null));
-    missile.visible = false;
+    // Keep the entire model alive in the shaft even when the doors are shut.
+    // Closed mesh panels supply the occlusion, never an invisible cutout.
+    missile.visible = true;
     scene.add(missile);
 
     // A restrained layer of stationary atmospheric dust lends scale to the lit bay.
@@ -971,8 +979,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hatchRight.rotation.z = -pose.hatch * 1.36;
       missile.position.y = siloModelY(pose) + siloExitOffset(elapsed, reduced);
       missile.rotation.y = Math.sin(timestamp * .00017) * .018;
-      missile.visible = siloModelVisible(pose)
-        && elapsed !== null && elapsed < SILO_SEQUENCE_MS * .94;
+      // No hatch-based visibility gate. The missile already exists underground.
+      // It is only hidden temporarily while beyond the camera after departure.
+      missile.visible = siloModelVisible(pose) &&
+        (elapsed === null || elapsed < SILO_SEQUENCE_MS * .94);
       const cinematicFlare = missile.visible ? pose.thrust : 0;
       const emissionY = missile.position.y - SILO_MODEL_SCALE_Y * 1.75;
       const plumeVisible = cinematicFlare > .04 && emissionY > SILO_DECK_Y + .08;
