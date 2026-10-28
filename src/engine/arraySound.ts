@@ -25,7 +25,8 @@ const CUE_LEVELS: Record<ArrayCue,number> = {
 };
 
 export function cueUrl(cue:ArrayCue, baseUrl='/'):string {
-  return baseUrl.replace(/\\/?$/, '/') + 'audio/' + ARRAY_AUDIO_FILES[cue];
+  const normalized=baseUrl.endsWith('/')?baseUrl:baseUrl+'/';
+  return normalized + 'audio/' + ARRAY_AUDIO_FILES[cue];
 }
 
 export class ArraySoundController {
