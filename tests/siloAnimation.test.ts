@@ -5,7 +5,7 @@ import {
 } from '../src/engine/siloAnimation';
 
 describe('3D launch visualization choreography', () => {
-  it('starts with a closed hatch and no exhaust', () => {
+  it('starts with a sealed hatch, while the model remains in the shaft', () => {
     expect(siloPose(null)).toMatchObject({ hatch: 0, thrust: 0, ascent: 0, shake: 0 });
   });
   it('opens the display hatch before the decorative signal pod ascends', () => {
@@ -21,19 +21,19 @@ describe('3D launch visualization choreography', () => {
     const idle = siloPose(null);
     expect(idle.hatch).toBe(0);
     expect(siloModelY(idle) + SILO_MODEL_SCALE_Y * SILO_MODEL_TIP_Y).toBeLessThan(SILO_DECK_Y);
-    expect(siloModelVisible(idle)).toBe(false);
+    expect(siloModelVisible(idle)).toBe(true);
     const opening = siloPose(SILO_SEQUENCE_MS * .18);
     expect(opening.hatch).toBeGreaterThan(0);
     expect(opening.ascent).toBe(0);
     expect(siloModelVisible(opening)).toBe(true);
   });
-  it('renders the prop inside the open shaft before the nose crosses the deck', () => {
+  it('keeps the underground prop rendered regardless of hatch state', () => {
     const openInside = siloPose(SILO_SEQUENCE_MS * .27);
     expect(siloModelVisible(openInside)).toBe(true);
     expect(siloModelY(openInside) + SILO_MODEL_SCALE_Y*SILO_MODEL_TIP_Y).toBeLessThan(SILO_DECK_Y);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .30))).toBe(true);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .50))).toBe(true);
-    expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS + 25))).toBe(false);
+    expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS + 25))).toBe(true);
     expect(siloPose(SILO_SEQUENCE_MS + 25).hatch).toBe(0);
     // The visual stays active longer so a lit exhaust can be visible at the camera.
     expect(siloPose(SILO_SEQUENCE_MS*.75).thrust).toBeGreaterThan(.9);
