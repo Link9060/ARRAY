@@ -21,6 +21,50 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Install uploaded Night Watch sound clips
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, BadZipFile
+          import hashlib
+
+          audio_dir = Path("public/audio")
+          pack = audio_dir / "RAVIN_ARRAY_9_Audio_Clips.zip"
+          expected = {
+              "dragon-studio-light-switch-on-382714.mp3",
+              "soundreality-switch-150130.mp3",
+              "edr-switch-click-and-beep-001a-11602.mp3",
+              "pietix-sound-effect-switch-2-535357.mp3",
+              "freesound_community-breaker-switch-45684.mp3",
+              "11325622-air-raid-siren-sound-effect-241383.mp3",
+              "jeremayjimenez-greece-eas-alarm-451404.mp3",
+              "freesound_community-rocket-blastoff-76735.mp3",
+              "eaglaxle-electronic-beep-1-453381.mp3",
+          }
+          if pack.is_file():
+              sha = hashlib.sha256(pack.read_bytes()).hexdigest()
+              if sha != "ad1999f017ae8ab820b74ea635ff2e4bacb5fa9372a260aac22dfd8180a576d7":
+                  raise SystemExit("Unexpected audio archive checksum, refusing to extract.")
+              with ZipFile(pack) as archive:
+                  files = [info.filename for info in archive.infolist() if not info.is_dir()]
+                  if len(files) != 9 or set(files) != expected:
+                      raise SystemExit("The audio archive must contain exactly the nine approved MP3 filenames.")
+                  if archive.testzip() is not None:
+                      raise SystemExit("Audio archive has a corrupt entry.")
+                  for filename in sorted(expected):
+                      data = archive.read(filename)
+                      if not data.startswith(b"ID3") and not (data[0] == 255 and data[1] & 224 == 224):
+                          raise SystemExit("Invalid MP3 signature: " + filename)
+                      (audio_dir / filename).write_bytes(data)
+                      print("Installed", filename, len(data), "bytes")
+              # The individual MP3 files are included in the website build.
+              # Do not publish the downloadable standalone ZIP as a website asset.
+              pack.unlink()
+          missing = sorted(name for name in expected if not (audio_dir / name).is_file())
+          if missing:
+              raise SystemExit("Missing nine audio clips: " + ", ".join(missing))
+          print("Audio ready: all nine expected MP3s found.")
+          PY
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
