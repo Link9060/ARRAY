@@ -394,7 +394,9 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     );
     const roadGeometry=new THREE.BufferGeometry();
     roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadCorners,3));
-    roadGeometry.setIndex([0,1,2,0,2,3]);
+    roadGeometry.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,8,0,8],2));
+    // CCW from above: normals face the camera's sky, never the underground shaft.
+    roadGeometry.setIndex([0,2,1,0,3,2]);
     roadGeometry.computeVertexNormals();
     const accessPath = new THREE.Mesh(
       roadGeometry,
