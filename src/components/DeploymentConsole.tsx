@@ -41,10 +41,12 @@ export default function DeploymentConsole({
     if(launchSignal<=0)return;
     // The rocket's first modeled movement occurs at 29% of the visual sequence.
     const timer=window.setTimeout(()=>audio.play('blastoff'),SILO_SEQUENCE_MS*.29);
+    // The source blast is ~20 seconds; blend its tail before the monitor opens.
+    const fadeTimer=window.setTimeout(()=>audio.fadeCue('blastoff',1300),9300);
     setChecks([]);
     setKeys([false,false]);
     setCoverOpen(false);
-    return ()=>window.clearTimeout(timer);
+    return ()=>{window.clearTimeout(timer);window.clearTimeout(fadeTimer);};
   },[audio,launchSignal]);
 
   const preflightReady = checks.length === SOFTWARE_CHECK_COUNT && keys.every(Boolean);
