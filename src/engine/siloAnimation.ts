@@ -52,11 +52,12 @@ export function siloModelY(pose: SiloPose): number {
   return SILO_PARKED_Y + SILO_TRAVEL_Y * pose.ascent;
 }
 
-/** Do not render the hidden prop until both the hatch and rising tip clear the deck. */
+/** The prop exists inside the shaft from the first clear view of the open hatch.
+ * The shaft walls and closed doors perform occlusion. Never gate on the tip
+ * crossing deck height, which previously caused a visible "portal" pop.
+ */
 export function siloModelVisible(pose: SiloPose): boolean {
-  return pose.hatch >= 0.92
-    && pose.ascent > 0
-    && siloModelY(pose) + SILO_MODEL_SCALE_Y * SILO_MODEL_TIP_Y > SILO_DECK_Y;
+  return pose.hatch > .22;
 }
 
 /** A restrained camera nod that returns smoothly to its idle framing. */

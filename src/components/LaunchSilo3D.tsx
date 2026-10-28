@@ -160,16 +160,6 @@ function createSmokeTexture(): THREE.CanvasTexture {
     ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
   },256,256);
 }
-function createMoonGlowTexture(): THREE.CanvasTexture {
-  return paintedTexture(ctx=>{
-    const gr=ctx.createRadialGradient(128,128,12,128,128,127);
-    gr.addColorStop(0,'rgba(218,230,222,.37)');
-    gr.addColorStop(.18,'rgba(173,193,185,.20)');
-    gr.addColorStop(.55,'rgba(137,170,174,.07)');
-    gr.addColorStop(1,'rgba(90,125,137,0)');
-    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
-  },256,256);
-}
 function createSquareWarning(): THREE.CanvasTexture {
   return paintedTexture(ctx=>{
     ctx.fillStyle='#e2b946';ctx.fillRect(0,0,512,512);
@@ -264,28 +254,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       opacity:.82,transparent:true,depthWrite:false,fog:false,
     }));
     sky.add(stars);
-    const moonGlowTexture=createMoonGlowTexture();
-    const moonHalo=new THREE.Sprite(new THREE.SpriteMaterial({
-      map:moonGlowTexture,color:0xc4dbd6,transparent:true,
-      blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,fog:false,
-    }));
-    moonHalo.position.set(-7.1,6.6,-34);
-    moonHalo.scale.set(8.3,8.3,1);
-    sky.add(moonHalo);
-    const moonSurface = paintedTexture(ctx=>{
-      ctx.fillStyle='#c4cec6';ctx.fillRect(0,0,512,512);
-      let seed=847;
-      const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
-      for(let i=0;i<90;i++){
-        const x=rnd()*512,y=rnd()*512,r=1.5+rnd()*24;
-        ctx.fillStyle=`rgba(74,93,89,${.035+rnd()*.15})`;
-        ctx.beginPath();ctx.ellipse(x,y,r,r*.75,rnd()*6,0,2*Math.PI);ctx.fill();
-      }
-    });
-    const moon=new THREE.Mesh(new THREE.SphereGeometry(1.03,40,28),
-      new THREE.MeshBasicMaterial({map:moonSurface,color:0xe4e6d8,fog:false}));
-    moon.position.set(-7.1,6.6,-33.4);
-    sky.add(moon);
+    // Keep distant stars, but leave out the moon as requested.
 
     // Organic layered evergreen clusters. Instancing keeps rendering efficient.
     const treeTrunk=new THREE.CylinderGeometry(.12,.19,1,6);
@@ -376,7 +345,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const groundTexture=createGroundTexture();
     groundTexture.repeat.set(38,38);
     const floorDeck = new THREE.Mesh(
-      new THREE.RingGeometry(1.15, 105, 144, 8),
+      new THREE.RingGeometry(1.15, 9.4, 112, 8),
       new THREE.MeshStandardMaterial({
         color:0x73776a, metalness:.08, roughness:.98,
         map:groundTexture,bumpMap:groundTexture,bumpScale:.13,side:THREE.DoubleSide,
@@ -386,6 +355,121 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     floorDeck.position.y=.095;
     floorDeck.receiveShadow=true;
     scene.add(floorDeck);
+    // Grass takes over at the edge of the facility's concrete apron.
+    // Both surfaces have the same ground height; no raised clipping slabs.
+    const grassTexture=createGroundTexture();
+    grassTexture.repeat.set(27,27);
+    const grass = new THREE.Mesh(
+      new THREE.RingGeometry(9.42, 115, 132, 9),
+      new THREE.MeshStandardMaterial({color:0x314b30,metalness:0,roughness:1,
+        map:grassTexture,bumpMap:grassTexture,bumpScale:.05,side:THREE.DoubleSide}),
+    );
+    grass.rotation.x=-Math.PI/2;
+    grass.position.y=.091;
+    grass.receiveShadow=true;
+    scene.add(grass);
+    // An offset approach path meets the main bay from the lower left of frame.
+    const accessPath = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.4,23),
+      new THREE.MeshStandardMaterial({color:0x44483d,metalness:.04,roughness:.93,
+        map:groundTexture,bumpMap:groundTexture,bumpScale:.035}),
+    );
+    accessPath.rotation.x=-Math.PI/2;
+    accessPath.rotation.z=-.72;
+    accessPath.position.set(-6.3,.107,6.7);
+    accessPath.receiveShadow=true;
+    scene.add(accessPath);
+    // Secondary decorative bay at the lower-left edge of the camera.
+    // Intentionally cropped so the scene reads as part of a larger facility.
+    const auxiliaryBay=new THREE.Group();
+    auxiliaryBay.position.set(-4.6,.122,3.2);
+    const auxMat=new THREE.MeshStandardMaterial({color:0x292f29,metalness:.62,roughness:.44});
+    const auxRing=new THREE.Mesh(new THREE.RingGeometry(1.5,2.10,72),auxMat);
+    auxRing.rotation.x=-Math.PI/2;auxiliaryBay.add(auxRing);
+    const auxWell=new THREE.Mesh(new THREE.CircleGeometry(1.51,64),
+      new THREE.MeshStandardMaterial({color:0x090e0c,roughness:.91}));
+    auxWell.rotation.x=-Math.PI/2;auxWell.position.y=-.018;auxiliaryBay.add(auxWell);
+    for(let half=0;half<2;half++){
+      const shape=new THREE.Shape();
+      const left=half===0,radius=1.5;
+      if(left){
+        shape.moveTo(0,radius);
+        shape.absarc(0,0,radius,Math.PI/2,1.5*Math.PI,false);
+        shape.lineTo(0,radius);
+      }else{
+        shape.moveTo(0,-radius);
+        shape.absarc(0,0,radius,-Math.PI/2,Math.PI/2,false);
+        shape.lineTo(0,-radius);
+      }
+      const door=new THREE.Mesh(new THREE.ShapeGeometry(shape),auxMat);
+      door.rotation.x=-Math.PI/2;
+      door.position.y=.028;
+      auxiliaryBay.add(door);
+    }
+    for(const r of [2.24,2.42]){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(r,.02,6,72),
+        new THREE.MeshBasicMaterial({color:0x55665a}));
+      ring.rotation.x=Math.PI/2;ring.position.y=.023;auxiliaryBay.add(ring);
+    }
+    scene.add(auxiliaryBay);
+
+    // Stylized fence in the grass at the edge of the concrete. This is visual
+    // scenery only, not a dimensioned or functional physical barrier.
+    const boundaryFence=new THREE.Group();
+    const fenceMetal=new THREE.MeshStandardMaterial({color:0x4e6056,roughness:.69,metalness:.43});
+    const wireMaterial=new THREE.LineBasicMaterial({color:0x77867a,transparent:true,opacity:.65});
+    const boundarySegments:THREE.Vector3[]=[];
+    for(let i=0;i<10;i++){
+      const x=-18+i*4;
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.075,1.78,.075),fenceMetal);
+      post.position.set(x,.97,-10.6);
+      boundaryFence.add(post);
+    }
+    for(const height of [.82,1.28,1.64]){
+      for(let j=0;j<120;j++){
+        const x=-18+j*.305;
+        const next=x+.305;
+        boundarySegments.push(new THREE.Vector3(x,height,-10.6),
+          new THREE.Vector3(next,height+.01*Math.sin(j*.6),-10.6));
+      }
+    }
+    // Tiny crossed highlights suggest a distant security wire silhouette.
+    for(let j=0;j<95;j++){
+      const x=-18+j*.38;
+      boundarySegments.push(new THREE.Vector3(x-.05,1.59,-10.6),
+        new THREE.Vector3(x+.05,1.71,-10.6));
+    }
+    boundaryFence.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(boundarySegments),wireMaterial));
+    scene.add(boundaryFence);
+
+    // Perimeter posts illuminate red only when the fictional software task
+    // launch is playing; they are dark in standby.
+    const perimeterAlarms:{bulb:THREE.Mesh;light:THREE.PointLight}[]=[];
+    for(const x of [-13,-4,5,14]){
+      const standard=new THREE.Mesh(new THREE.CylinderGeometry(.045,.075,3.1,8),fenceMetal);
+      standard.position.set(x,1.63,-10.35);scene.add(standard);
+      const head=new THREE.Mesh(new THREE.BoxGeometry(.48,.15,.25),auxMat);
+      head.position.set(x,3.2,-10.35);scene.add(head);
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),
+        new THREE.MeshBasicMaterial({color:0xff4c37}));
+      bulb.position.set(x,3.32,-10.35);
+      bulb.visible=false;
+      scene.add(bulb);
+      const light=new THREE.PointLight(0xee3024,0,5.5);
+      light.position.copy(bulb.position);
+      scene.add(light);
+      perimeterAlarms.push({bulb,light});
+    }
+    // A few durable-looking panel boxes and low curbs make the pad less empty.
+    const utilitySteel=new THREE.MeshStandardMaterial({color:0x414a3e,metalness:.64,roughness:.53});
+    for(const [x,z,w] of [[-3.9,2.2,.68],[3.9,-2.3,.95],[-4.3,-3.2,.52]] as const){
+      const cabinet=new THREE.Mesh(new THREE.BoxGeometry(w,.57,.43),utilitySteel);
+      cabinet.position.set(x,.40,z);
+      cabinet.castShadow=true;scene.add(cabinet);
+      const latch=new THREE.Mesh(new THREE.BoxGeometry(.09,.05,.018),
+        new THREE.MeshBasicMaterial({color:0xc2ba8e}));
+      latch.position.set(x,.45,z+.225);scene.add(latch);
+    }
     const shaftWall = new THREE.Mesh(
       new THREE.CylinderGeometry(1.105, 1.105, 9.1, 80, 1, true),
       new THREE.MeshStandardMaterial({
@@ -398,28 +482,77 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const lowerBayLight = new THREE.PointLight(0xd2b783, 2.1, 5.0);
     lowerBayLight.position.set(0,-.85,0);
     scene.add(lowerBayLight);
-    // Four vintage-style rotating visual beacons. Amber at standby,
-    // red during the fictional software-deployment sequence.
-    const rotatingBeacons: { rotor:THREE.Group; light:THREE.PointLight; dome:THREE.MeshStandardMaterial; reflector:THREE.MeshBasicMaterial; }[]=[];
-    for (const [x,z] of [[-3.15,-3.05],[3.15,-3.05],[-3.15,3.05],[3.15,3.05]] as const) {
-      const base=new THREE.Mesh(new THREE.CylinderGeometry(.24,.27,.12,24),
-        new THREE.MeshStandardMaterial({color:0x3a3d39,metalness:.7,roughness:.45}));
+    // Opposed directional lamp heads behind a restrained translucent cover.
+    // Each reflector has its own narrow spotlight, not a constant point source.
+    type DualBeacon = {
+      rotor:THREE.Group;
+      glass:THREE.MeshStandardMaterial;
+      lenses:THREE.MeshBasicMaterial;
+      beams:THREE.MeshBasicMaterial;
+      spots:[THREE.SpotLight,THREE.SpotLight];
+    };
+    const rotatingBeacons:DualBeacon[]=[];
+    const beaconLocations=[[-3.15,-3.05],[3.15,-3.05],[-3.15,3.05],[3.15,3.05]] as const;
+    for(const [x,z] of beaconLocations){
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(.255,.28,.11,28),
+        new THREE.MeshStandardMaterial({color:0x343b37,metalness:.78,roughness:.37}));
       base.position.set(x,.18,z);scene.add(base);
-      const domeMat=new THREE.MeshStandardMaterial({
-        color:0xedb341,metalness:.05,roughness:.13,
-        transparent:true,opacity:.7,emissive:0xb47b19,emissiveIntensity:.7,
+      const mount=new THREE.Mesh(new THREE.CylinderGeometry(.172,.21,.08,24),
+        new THREE.MeshStandardMaterial({color:0x7c8579,metalness:.81,roughness:.28}));
+      mount.position.set(x,.28,z);scene.add(mount);
+      const glass=new THREE.MeshStandardMaterial({
+        color:0xd6a348,metalness:.08,roughness:.14,
+        transparent:true,opacity:.35,emissive:0x98671c,emissiveIntensity:.18,
+        side:THREE.DoubleSide,depthWrite:false,
       });
-      const dome=new THREE.Mesh(new THREE.SphereGeometry(.20,20,12,0,Math.PI*2,0,Math.PI/2),domeMat);
-      dome.position.set(x,.26,z);
-      scene.add(dome);
+      const lenses=new THREE.MeshBasicMaterial({
+        color:0xffe39c,side:THREE.DoubleSide,
+      });
+      const beams=new THREE.MeshBasicMaterial({
+        color:0xffcc70,transparent:true,opacity:lowDetail?0:.075,
+        blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,
+      });
       const rotor=new THREE.Group();
-      rotor.position.set(x,.34,z);
-      const reflector=new THREE.MeshBasicMaterial({color:0xffd56c,side:THREE.DoubleSide});
-      const reflectorBlade=new THREE.Mesh(new THREE.BoxGeometry(.26,.14,.055),reflector);
-      reflectorBlade.position.x=.095;rotor.add(reflectorBlade);scene.add(rotor);
-      const light=new THREE.PointLight(0xf8ae43,.7,3.2);
-      light.position.set(x,.42,z);scene.add(light);
-      rotatingBeacons.push({rotor,light,dome:domeMat,reflector});
+      rotor.position.set(x,.365,z);
+      const housing=new THREE.Mesh(new THREE.BoxGeometry(.37,.14,.20),
+        new THREE.MeshStandardMaterial({color:0x414a40,metalness:.8,roughness:.26}));
+      rotor.add(housing);
+      const spots=[] as THREE.SpotLight[];
+      for(const sign of [-1,1]){
+        const head=new THREE.Group();
+        head.position.x=sign*.205;
+        const reflector=new THREE.Mesh(new THREE.CylinderGeometry(.096,.12,.07,20),
+          new THREE.MeshStandardMaterial({color:0xc5c7b7,metalness:.87,roughness:.18}));
+        reflector.rotation.z=Math.PI/2;
+        reflector.position.x=sign*.018;
+        head.add(reflector);
+        const lens=new THREE.Mesh(new THREE.CircleGeometry(.098,24),lenses);
+        lens.rotation.y=sign>0?Math.PI/2:-Math.PI/2;
+        lens.position.x=sign*.059;
+        head.add(lens);
+        rotor.add(head);
+        const spot=new THREE.SpotLight(0xffbf62,6,4.6,.42,.84,1.5);
+        spot.position.set(sign*.16,.01,0);
+        const target=new THREE.Object3D();
+        target.position.set(sign*4.5,0,0);
+        rotor.add(spot,target);
+        spot.target=target;
+        spots.push(spot);
+        // Volumetric-looking cone is decorative, anchored at the reflector.
+        if(!lowDetail){
+          const length=3.8;
+          const cone=new THREE.Mesh(new THREE.ConeGeometry(.74,length,24,1,true),beams);
+          cone.rotation.z=sign>0?Math.PI/2:-Math.PI/2;
+          cone.position.x=sign*(length/2+.24);
+          rotor.add(cone);
+        }
+      }
+      const cover=new THREE.Mesh(
+        new THREE.SphereGeometry(.245,24,12,0,Math.PI*2,0,Math.PI/2),glass);
+      cover.position.set(0,-.08,0);
+      rotor.add(cover);
+      scene.add(rotor);
+      rotatingBeacons.push({rotor,glass,lenses,beams,spots:spots as [THREE.SpotLight,THREE.SpotLight]});
     }
     // Smaller, constant-red accent lamps only during the cinematic launch.
     const accentLamps:THREE.Mesh[]=[];
@@ -693,22 +826,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       mark.position.set(Math.sin(angle)*.413,-.69,Math.cos(angle)*.413);
       missile.add(mark);
     }
-    // The prop is longer and starts completely below the closed inspection deck.
-    // Clipping at deck level keeps hidden sections from unrealistically appearing
-    // through the solid platform as the animated silhouette emerges.
+    // The fictional object is physically present inside the open shaft.
+    // Geometry and the circular hatch conceal it naturally, not a world-space
+    // clipping plane that made it suddenly appear at ground level.
     missile.scale.y = SILO_MODEL_SCALE_Y;
-    const deckClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SILO_DECK_Y);
-    missile.traverse(part => {
-      if (!(part instanceof THREE.Mesh)) return;
-      const original = Array.isArray(part.material) ? part.material : [part.material];
-      const clipped = original.map(material => {
-        const copy = material.clone();
-        copy.clippingPlanes = [deckClip];
-        copy.clipShadows = true;
-        return copy;
-      });
-      part.material = Array.isArray(part.material) ? clipped : clipped[0];
-    });
     missile.position.y = siloModelY(siloPose(null));
     missile.visible = false;
     scene.add(missile);
@@ -800,17 +921,25 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       if (elapsed !== null && elapsed > SILO_SEQUENCE_MS) startedRef.current = null;
       const pose = siloPose(elapsed, reduced);
       const alertActive = siloVisualAlert(elapsed);
-      const beaconColor = alertActive ? 0xed4238 : 0xedb341;
+      const beaconColor=alertActive?0xed4439:0xe7b153;
       for(let i=0;i<rotatingBeacons.length;i++){
         const beacon=rotatingBeacons[i];
-        beacon.rotor.rotation.y = reduced ? 0 : timestamp*.0065 + i*Math.PI/2;
-        beacon.dome.color.setHex(beaconColor);
-        beacon.dome.emissive.setHex(alertActive ? 0x93221d : 0xb47b19);
-        beacon.reflector.color.setHex(alertActive ? 0xff7161 : 0xffd56c);
-        beacon.light.color.setHex(beaconColor);
-        beacon.light.intensity = .55 + (reduced ? 0 : .8 * Math.max(0,Math.cos(beacon.rotor.rotation.y)));
+        const angle=reduced?i*Math.PI/2:timestamp*.0045+i*Math.PI*.5;
+        beacon.rotor.rotation.y=angle;
+        beacon.glass.color.setHex(beaconColor);
+        beacon.glass.emissive.setHex(alertActive?0x8b2b21:0x936321);
+        beacon.lenses.color.setHex(alertActive?0xffb0a4:0xffe9ae);
+        beacon.beams.color.setHex(alertActive?0xfd5144:0xffd382);
+        for(const spot of beacon.spots){
+          spot.color.setHex(beaconColor);
+          spot.intensity=5.5;
+        }
       }
       accentLamps.forEach(lamp => {lamp.visible=alertActive;});
+      perimeterAlarms.forEach(({bulb,light}) => {
+        bulb.visible=alertActive;
+        light.intensity=alertActive ? 1.35 : 0;
+      });
       redAccentLight.intensity = alertActive ? .68 : 0;
       // Shut completely at rest. Open, reveal the rising prop, then re-seal.
       hatchLeft.rotation.z = pose.hatch * 1.36;
@@ -920,9 +1049,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hazardTexture.dispose();
       stencilTexture.dispose();
       steelTexture.dispose();
-      moonGlowTexture.dispose();
-      moonSurface.dispose();
       groundTexture.dispose();
+    grassTexture.dispose();
       triangleTexture.dispose();
       squareTexture.dispose();
       smokeTexture.dispose();
