@@ -382,7 +382,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     // Secondary decorative bay at the lower-left edge of the camera.
     // Intentionally cropped so the scene reads as part of a larger facility.
     const auxiliaryBay=new THREE.Group();
-    auxiliaryBay.position.set(-8.3,.122,5.1);
+    auxiliaryBay.position.set(-4.6,.122,3.2);
     const auxMat=new THREE.MeshStandardMaterial({color:0x292f29,metalness:.62,roughness:.44});
     const auxRing=new THREE.Mesh(new THREE.RingGeometry(1.5,2.10,72),auxMat);
     auxRing.rotation.x=-Math.PI/2;auxiliaryBay.add(auxRing);
