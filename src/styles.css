@@ -2332,3 +2332,115 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   }
   .ops-arrival-overlay {transform:translateX(-50%)!important;}
 }
+
+
+/* ARRAY / Ambient music transport.
+   Independent from the theatrical mission sound-effect switchboard. */
+.ambient-music-strip {
+  position:relative;z-index:9;
+  border-bottom:1px solid #5c6b57;
+  background:
+    linear-gradient(115deg,#1f2b21,#131c16 68%,#242e23);
+  box-shadow:inset 0 1px #afbc8a15,0 8px 25px #0008;
+}
+.ambient-music-inner {
+  max-width:1540px;margin:auto;
+  padding:10px clamp(24px,3.8vw,72px);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;column-gap:13px;row-gap:9px;
+}
+.ambient-music-heading {
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;min-width:180px;
+}
+.ambient-music-heading>span:last-child {display:flex;flex-direction:column;gap:4px;}
+.ambient-music-heading strong {
+  font:700 10px var(--mono);letter-spacing:.07em;color:#ebe9d2;
+}
+.ambient-music-heading small {
+  font:8px var(--mono);letter-spacing:.035em;color:#9fae9c;
+}
+.ambient-music-icon {
+  display:grid;place-items:center;
+  width:32px;height:32px;
+  border:1px solid #7b865f;color:#d4bf8c;
+  background:linear-gradient(150deg,#333e2d,#1b251c);
+}
+.ambient-music-toggle,.ambient-music-file,.ambient-music-remove {
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;min-height:34px;padding:7px 11px;
+  background:#283729;border:1px solid #687965;color:#d9dfc9;
+  cursor:pointer;font:700 9px var(--mono);white-space:nowrap;
+}
+.ambient-music-toggle {min-width:113px;}
+.ambient-music-toggle.active {
+  color:#22281d;background:#c7b47e;border-color:#e4d29f;
+  box-shadow:0 0 13px #c8b37835;
+}
+.ambient-music-toggle:hover,.ambient-music-file:hover,.ambient-music-remove:hover {
+  border-color:#d7c38a;
+}
+.ambient-music-toggle:focus-visible,
+.ambient-music-file:focus-visible,.ambient-music-remove:focus-visible,
+.ambient-music-volume input:focus-visible {
+  outline:2px solid #f2d798;outline-offset:2px;
+}
+.ambient-music-track {
+  display:flex;align-items:center;gap:7px;
+  min-width:120px;flex:1 1 200px;
+  border:1px solid #435445;background:#111a14;
+  min-height:34px;padding:7px 10px;
+}
+.ambient-music-track>span:nth-child(2) {
+  color:#c3ccbb;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font:9px var(--mono);min-width:0;
+  flex:1;
+}
+.ambient-music-track small {
+  color:#a4976d;font:8px var(--mono);
+  flex-shrink:0;
+}
+.ambient-music-indicator {
+  height:7px;width:7px;flex:none;border-radius:50%;
+  border:1px solid #637468;background:#667d6a;
+}
+.ambient-music-indicator.playing {
+  background:#accb8f;box-shadow:0 0 7px #b9d89984;
+}
+.ambient-music-volume {
+  display:flex;align-items:center;gap:9px;
+  color:#d3d8bf;font:700 9px var(--mono);
+}
+.ambient-music-volume svg {color:#baaa7e;flex:none;}
+.ambient-music-volume input {
+  width:92px;accent-color:#c4ae74;cursor:pointer;
+}
+.ambient-music-volume output {
+  min-width:32px;text-align:right;
+  color:#d9c894;font:10px var(--mono);
+}
+.ambient-music-file-actions {display:flex;align-items:center;gap:5px;}
+.ambient-music-file {background:#313c2c;border-color:#827b5e;}
+.ambient-music-remove {padding:7px;min-width:32px;}
+.ambient-music-picker {display:none;}
+.ambient-music-message {
+  max-width:1540px;margin:0 auto;
+  padding:0 clamp(24px,3.8vw,72px) 9px;
+  color:#c7bb99;font:9px/1.5 var(--mono);
+}
+@media(max-width:1080px) {
+  .ambient-music-heading {min-width:160px;}
+  .ambient-music-track {order:3;flex-basis:100%;}
+}
+@media(max-width:580px) {
+  .ambient-music-inner {gap:9px;padding:10px 15px;}
+  .ambient-music-heading {flex:1 1 170px;}
+  .ambient-music-toggle {flex:0 0 auto;}
+  .ambient-music-volume {order:4;flex:1;justify-content:space-between;}
+  .ambient-music-track {order:3;flex-basis:100%;}
+  .ambient-music-file-actions {order:5;}
+  .ambient-music-message {padding:0 15px 9px;}
+}
+@media(prefers-reduced-motion:reduce){
+  .ambient-music-strip * {transition:none!important;animation:none!important;}
+}
