@@ -379,6 +379,97 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     accessPath.position.set(-6.3,.107,6.7);
     accessPath.receiveShadow=true;
     scene.add(accessPath);
+    // Secondary decorative bay at the lower-left edge of the camera.
+    // Intentionally cropped so the scene reads as part of a larger facility.
+    const auxiliaryBay=new THREE.Group();
+    auxiliaryBay.position.set(-8.3,.122,5.1);
+    const auxMat=new THREE.MeshStandardMaterial({color:0x292f29,metalness:.62,roughness:.44});
+    const auxRing=new THREE.Mesh(new THREE.RingGeometry(1.5,2.10,72),auxMat);
+    auxRing.rotation.x=-Math.PI/2;auxiliaryBay.add(auxRing);
+    const auxWell=new THREE.Mesh(new THREE.CircleGeometry(1.51,64),
+      new THREE.MeshStandardMaterial({color:0x090e0c,roughness:.91}));
+    auxWell.rotation.x=-Math.PI/2;auxWell.position.y=-.018;auxiliaryBay.add(auxWell);
+    for(let half=0;half<2;half++){
+      const shape=new THREE.Shape();
+      const left=half===0,radius=1.5;
+      if(left){
+        shape.moveTo(0,radius);
+        shape.absarc(0,0,radius,Math.PI/2,1.5*Math.PI,false);
+        shape.lineTo(0,radius);
+      }else{
+        shape.moveTo(0,-radius);
+        shape.absarc(0,0,radius,-Math.PI/2,Math.PI/2,false);
+        shape.lineTo(0,-radius);
+      }
+      const door=new THREE.Mesh(new THREE.ShapeGeometry(shape),auxMat);
+      door.rotation.x=-Math.PI/2;
+      door.position.y=.028;
+      auxiliaryBay.add(door);
+    }
+    for(const r of [2.24,2.42]){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(r,.02,6,72),
+        new THREE.MeshBasicMaterial({color:0x55665a}));
+      ring.rotation.x=Math.PI/2;ring.position.y=.023;auxiliaryBay.add(ring);
+    }
+    scene.add(auxiliaryBay);
+
+    // Stylized fence in the grass at the edge of the concrete. This is visual
+    // scenery only, not a dimensioned or functional physical barrier.
+    const boundaryFence=new THREE.Group();
+    const fenceMetal=new THREE.MeshStandardMaterial({color:0x4e6056,roughness:.69,metalness:.43});
+    const wireMaterial=new THREE.LineBasicMaterial({color:0x77867a,transparent:true,opacity:.65});
+    const boundarySegments:THREE.Vector3[]=[];
+    for(let i=0;i<10;i++){
+      const x=-18+i*4;
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.075,1.78,.075),fenceMetal);
+      post.position.set(x,.97,-10.6);
+      boundaryFence.add(post);
+    }
+    for(const height of [.82,1.28,1.64]){
+      for(let j=0;j<120;j++){
+        const x=-18+j*.305;
+        const next=x+.305;
+        boundarySegments.push(new THREE.Vector3(x,height,-10.6),
+          new THREE.Vector3(next,height+.01*Math.sin(j*.6),-10.6));
+      }
+    }
+    // Tiny crossed highlights suggest a distant security wire silhouette.
+    for(let j=0;j<95;j++){
+      const x=-18+j*.38;
+      boundarySegments.push(new THREE.Vector3(x-.05,1.59,-10.6),
+        new THREE.Vector3(x+.05,1.71,-10.6));
+    }
+    boundaryFence.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(boundarySegments),wireMaterial));
+    scene.add(boundaryFence);
+
+    // Perimeter posts illuminate red only when the fictional software task
+    // launch is playing; they are dark in standby.
+    const perimeterAlarms:{bulb:THREE.Mesh;light:THREE.PointLight}[]=[];
+    for(const x of [-13,-4,5,14]){
+      const standard=new THREE.Mesh(new THREE.CylinderGeometry(.045,.075,3.1,8),fenceMetal);
+      standard.position.set(x,1.63,-10.35);scene.add(standard);
+      const head=new THREE.Mesh(new THREE.BoxGeometry(.48,.15,.25),auxMat);
+      head.position.set(x,3.2,-10.35);scene.add(head);
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),
+        new THREE.MeshBasicMaterial({color:0xff4c37}));
+      bulb.position.set(x,3.32,-10.35);
+      bulb.visible=false;
+      scene.add(bulb);
+      const light=new THREE.PointLight(0xee3024,0,5.5);
+      light.position.copy(bulb.position);
+      scene.add(light);
+      perimeterAlarms.push({bulb,light});
+    }
+    // A few durable-looking panel boxes and low curbs make the pad less empty.
+    const utilitySteel=new THREE.MeshStandardMaterial({color:0x414a3e,metalness:.64,roughness:.53});
+    for(const [x,z,w] of [[-3.9,2.2,.68],[3.9,-2.3,.95],[-4.3,-3.2,.52]] as const){
+      const cabinet=new THREE.Mesh(new THREE.BoxGeometry(w,.57,.43),utilitySteel);
+      cabinet.position.set(x,.40,z);
+      cabinet.castShadow=true;scene.add(cabinet);
+      const latch=new THREE.Mesh(new THREE.BoxGeometry(.09,.05,.018),
+        new THREE.MeshBasicMaterial({color:0xc2ba8e}));
+      latch.position.set(x,.45,z+.225);scene.add(latch);
+    }
     const shaftWall = new THREE.Mesh(
       new THREE.CylinderGeometry(1.105, 1.105, 9.1, 80, 1, true),
       new THREE.MeshStandardMaterial({
@@ -792,6 +883,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
         beacon.light.intensity = .55 + (reduced ? 0 : .8 * Math.max(0,Math.cos(beacon.rotor.rotation.y)));
       }
       accentLamps.forEach(lamp => {lamp.visible=alertActive;});
+      perimeterAlarms.forEach(({bulb,light}) => {
+        bulb.visible=alertActive;
+        light.intensity=alertActive ? 1.35 : 0;
+      });
       redAccentLight.intensity = alertActive ? .68 : 0;
       // Shut completely at rest. Open, reveal the rising prop, then re-seal.
       hatchLeft.rotation.z = pose.hatch * 1.36;
