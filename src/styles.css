@@ -2172,3 +2172,163 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 @media(prefers-reduced-motion:reduce) {
   .ops-room * {scroll-behavior:auto;}
 }
+
+
+/* ---------------------------------------------------------------
+   End-of-mission reveal: an instrumentation event, not confetti.
+   Only reported state transitions can activate the signal.
+   --------------------------------------------------------------- */
+.ops-notify-toggle {
+  background:linear-gradient(160deg,#26352a,#17231c);
+  border-color:#71806e;
+}
+.ops-notify-toggle.enabled {
+  color:#e9d49b;border-color:#b9aa76;
+  background:linear-gradient(145deg,#45422c,#302f23);
+}
+.ops-notification-note {
+  display:flex;gap:8px;align-items:center;
+  padding:9px 13px;margin-top:9px;
+  border:1px solid #515e4b;background:#101811;
+  color:#9eae9c;font:9px/1.5 var(--mono);
+}
+.ops-notification-note svg {color:#b8ae85;flex:none;}
+.ops-completion-announcement {
+  display:grid;grid-template-columns:110px minmax(0,1fr) auto;
+  align-items:center;gap:20px;
+  position:relative;overflow:hidden;
+  margin-top:13px;padding:23px 23px 21px;
+  background:
+    linear-gradient(107deg,rgba(169,184,123,.1),transparent 45%),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,#a9b99408 40px),
+    linear-gradient(135deg,#252f24,#141d17 70%);
+  border:1px solid #83916c;border-top:3px solid #c9b680;
+  box-shadow:inset 0 0 0 5px #0e160f,0 11px 31px #0009;
+  animation:ops-completion-enter .52s cubic-bezier(.14,.73,.25,1) both;
+}
+.ops-completion-announcement::before {
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(120deg,transparent 30%,#f6e1a90c 48%,transparent 65%);
+  transform:translateX(-100%);
+  animation:ops-completion-sweep 1.8s ease-out .1s both;
+}
+.ops-completion-emblem {
+  width:95px;height:95px;display:flex;align-items:center;justify-content:center;
+  position:relative;color:#d9d6a3;
+  border:1px solid #a8ab7e;background:radial-gradient(circle,#334332 0%,#16241a 75%);
+  box-shadow:inset 0 0 24px #0b130d,0 0 17px #b0bd7c22;
+}
+.ops-completion-emblem svg {z-index:1;filter:drop-shadow(0 0 8px #b6e8a566);}
+.ops-completion-ring {
+  position:absolute;inset:12px;border:1px dashed #9eb88d;
+  border-radius:50%;animation:ops-completion-spin 10s linear infinite;
+}
+.ops-completion-ring::before {
+  content:'';position:absolute;top:-3px;left:50%;width:5px;height:5px;
+  border-radius:50%;background:#d3d6a0;box-shadow:0 0 10px #e6edbb;
+}
+.ops-completion-copy {min-width:0;}
+.ops-completion-eyebrow {
+  display:block;color:#c6bd95;font:700 9px var(--mono);letter-spacing:.13em;
+  margin-bottom:9px;
+}
+.ops-completion-copy > strong {
+  display:block;color:#f0efd9;font:800 clamp(21px,2.6vw,36px)/1.15 var(--mono);
+  letter-spacing:.035em;text-transform:uppercase;
+}
+.ops-completion-copy p {
+  color:#d2ddc7;font:11px/1.6 var(--mono);
+  overflow-wrap:anywhere;margin:10px 0 6px;
+}
+.ops-completion-copy p span {color:#927f56;margin:0 5px;}
+.ops-completion-copy small {color:#aebca6;font:10px/1.5 var(--mono);}
+.ops-completion-actions {display:flex;align-items:center;gap:8px;}
+.ops-completion-actions button {
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  cursor:pointer;font:700 10px var(--mono);
+}
+.ops-completion-open {
+  background:#c2af7c;border:1px solid #e1d09d;color:#1d261d;
+  padding:13px 14px;white-space:nowrap;min-height:44px;
+}
+.ops-completion-open:hover {background:#e0c88f;}
+.ops-completion-close {
+  background:#202a21;border:1px solid #566854;color:#b9c8b0;
+  height:44px;width:41px;
+}
+.ops-completion-close:hover {border-color:#9db08d;color:#fff;}
+.ops-completion-announcement.is-failed {
+  border-top-color:#c47e67;background:
+    linear-gradient(107deg,#8c40371b,transparent 48%),
+    linear-gradient(135deg,#2d2420,#151b17 70%);
+}
+.ops-completion-announcement.is-failed .ops-completion-emblem {
+  color:#e9b3a1;border-color:#b47c6f;
+}
+.ops-completion-announcement.is-failed .ops-completion-ring {border-color:#c78c7f;}
+.ops-completion-announcement.is-failed .ops-completion-open {
+  background:#c39680;color:#201a16;border-color:#e8b09e;
+}
+.ops-network-shell {position:relative;}
+.ops-arrival-overlay {
+  position:absolute;top:21%;left:50%;z-index:5;pointer-events:none;
+  display:flex;align-items:center;flex-direction:column;gap:10px;
+  transform:translateX(-50%);min-width:180px;
+  animation:ops-arrival-reveal .6s both;
+}
+.ops-arrival-pulse {
+  display:block;width:59px;height:59px;
+  border-radius:50%;border:1px solid #d8c38d;
+  background:radial-gradient(circle,#c9c68e24,transparent 68%);
+  box-shadow:0 0 0 1px #7f956a55,0 0 20px #c9b87955,inset 0 0 20px #b9bb7744;
+  animation:ops-arrival-signal 1.65s ease-out 3;
+}
+.ops-arrival-text {
+  padding:8px 12px;background:#1a251bdc;
+  border:1px solid #a3ae7a;
+  color:#f0e6c7;font:700 9px var(--mono);letter-spacing:.1em;
+  white-space:nowrap;box-shadow:0 8px 24px #0009;
+}
+.ops-arrival-overlay.failed .ops-arrival-pulse {border-color:#c78176;}
+.ops-arrival-overlay.failed .ops-arrival-text {border-color:#bb8178;color:#f0b2a6;}
+@keyframes ops-completion-enter {
+  from {opacity:0;transform:translateY(-14px) scale(.99);}
+  to {opacity:1;transform:translateY(0) scale(1);}
+}
+@keyframes ops-completion-sweep {
+  from {transform:translateX(-100%);}
+  to {transform:translateX(105%);}
+}
+@keyframes ops-completion-spin {
+  to {transform:rotate(360deg);}
+}
+@keyframes ops-arrival-reveal {
+  from {opacity:0;filter:blur(4px);}
+  to {opacity:1;filter:blur(0);}
+}
+@keyframes ops-arrival-signal {
+  0% {transform:scale(.65);opacity:.95;box-shadow:0 0 0 0 #c8d3a45a;}
+  65% {transform:scale(1.22);opacity:.7;box-shadow:0 0 0 17px #c8d3a408;}
+  100% {transform:scale(1.55);opacity:0;box-shadow:0 0 0 24px transparent;}
+}
+@media(max-width:950px) {
+  .ops-completion-announcement {
+    grid-template-columns:75px minmax(0,1fr);gap:13px;padding:16px;
+  }
+  .ops-completion-emblem {width:68px;height:68px;}
+  .ops-completion-actions {grid-column:2;}
+}
+@media(max-width:500px) {
+  .ops-completion-announcement {grid-template-columns:1fr;}
+  .ops-completion-emblem {width:56px;height:56px;}
+  .ops-completion-copy > strong {font-size:22px;}
+  .ops-completion-actions {grid-column:1;}
+  .ops-completion-open {flex:1;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .ops-completion-announcement,.ops-completion-announcement::before,
+  .ops-completion-ring,.ops-arrival-overlay,.ops-arrival-pulse {
+    animation:none!important;transform:none!important;
+  }
+  .ops-arrival-overlay {transform:translateX(-50%)!important;}
+}
