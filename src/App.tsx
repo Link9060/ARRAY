@@ -17,6 +17,7 @@ import { missionEvents, missionStatus } from './engine/missionEvents';
 import { missionEndMessage, missionEndTransitions } from './engine/completionAlerts';
 import LaunchSilo3D from './components/LaunchSilo3D';
 import DeploymentConsole from './components/DeploymentConsole';
+import AmbientMusicControl from './components/AmbientMusicControl';
 import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
 import { filterMissionRegister,makeMissionExport, type MissionFilter, type MissionOrder, type MissionChannel } from './engine/monitorFilters';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
@@ -844,6 +845,7 @@ export default function App() {
         <div className="header-center"><span className="header-line" /><span className="header-route">ARROW ECOSYSTEM <ChevronRight size={12} /> RAVIN <ChevronRight size={12} /> ARRAY</span><span className="header-line" /></div>
         <div className="header-right"><span className="header-clock">{displayTime}</span><span className="simulation-pill"><span className="amber-dot" /> {liveMode ? 'LIVE TEXT MODE' : 'SIMULATION MODE'}</span><a className="header-chat" href={CHAT_URL} target="_blank" rel="noopener noreferrer">RAVIN CHAT <ExternalLink size={13} /></a></div>
       </header>
+      <AmbientMusicControl />
       <main id="top" className="main-content">
         <div className="intro-row">
           <div><div className="section-kicker"><span className="section-kicker-line" /> MISSION CONTROL / SIMULATED INTERFACE <span className="alpha-index">/ 001</span></div><h1>RAVIN <span>ARRAY</span><span className="title-period">.</span></h1><p className="intro-tagline">Task command interface. <span>Coordinate the RAVIN network.</span></p></div>
