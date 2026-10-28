@@ -1,0 +1,33 @@
+name: Diagnose Pixabay audio asset route
+on:
+  push:
+    branches:
+      - chore/import-pixabay-audio-20261027
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  examine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check original public Pixabay media metadata
+        run: |
+          python3 - <<'PY'
+          import re,urllib.request
+          url='https://pixabay.com/sound-effects/technology-electronic-beep-1-453381/'
+          req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; ArrayAssetImport/1.0)'})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  raw=r.read().decode('utf-8','replace')
+                  print('HTML status',r.status,'length',len(raw),'url',r.url)
+                  urls=re.findall(r'https?[^"\\s<>]+?\\.mp3[^"\\s<>]*',raw)
+                  print('MP3 candidates',len(urls))
+                  for link in urls[:4]:
+                      print('Candidate',link[:210])
+                  print('bootstrap',re.findall(r'__BOOTSTRAP_URL__.{0,160}',raw)[:2])
+                  print('cdn audio markers',raw.count('cdn.pixabay.com/audio/'))
+          except Exception as exc:
+              print('Request failed',repr(exc))
+              raise
+          PY
