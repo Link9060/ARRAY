@@ -80,3 +80,8 @@ export function siloVisualAlert(elapsedMs: number | null): boolean {
   const pose = siloPose(elapsedMs);
   return elapsedMs < SILO_SEQUENCE_MS && (pose.hatch > .04 || pose.thrust > .02);
 }
+
+/** Never replay a historical visual launch when returning from Mission Control. */
+export function activeLaunchSignal(sequenceId: number, isPlaying: boolean): number {
+  return isPlaying && sequenceId > 0 ? sequenceId : 0;
+}

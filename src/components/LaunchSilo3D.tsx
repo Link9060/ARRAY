@@ -214,7 +214,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
   const [available, setAvailable] = useState(true);
 
   useEffect(() => {
-    if (launchSignal > 0) startedRef.current = performance.now();
+    // A zero token means standby. Never replay an old positive token on remount.
+    startedRef.current = launchSignal > 0 ? performance.now() : null;
     repaintRef.current?.();
   }, [launchSignal]);
 
