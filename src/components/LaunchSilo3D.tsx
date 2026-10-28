@@ -160,16 +160,6 @@ function createSmokeTexture(): THREE.CanvasTexture {
     ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
   },256,256);
 }
-function createMoonGlowTexture(): THREE.CanvasTexture {
-  return paintedTexture(ctx=>{
-    const gr=ctx.createRadialGradient(128,128,12,128,128,127);
-    gr.addColorStop(0,'rgba(218,230,222,.37)');
-    gr.addColorStop(.18,'rgba(173,193,185,.20)');
-    gr.addColorStop(.55,'rgba(137,170,174,.07)');
-    gr.addColorStop(1,'rgba(90,125,137,0)');
-    ctx.fillStyle=gr;ctx.fillRect(0,0,256,256);
-  },256,256);
-}
 function createSquareWarning(): THREE.CanvasTexture {
   return paintedTexture(ctx=>{
     ctx.fillStyle='#e2b946';ctx.fillRect(0,0,512,512);
@@ -264,28 +254,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       opacity:.82,transparent:true,depthWrite:false,fog:false,
     }));
     sky.add(stars);
-    const moonGlowTexture=createMoonGlowTexture();
-    const moonHalo=new THREE.Sprite(new THREE.SpriteMaterial({
-      map:moonGlowTexture,color:0xc4dbd6,transparent:true,
-      blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,fog:false,
-    }));
-    moonHalo.position.set(-7.1,6.6,-34);
-    moonHalo.scale.set(8.3,8.3,1);
-    sky.add(moonHalo);
-    const moonSurface = paintedTexture(ctx=>{
-      ctx.fillStyle='#c4cec6';ctx.fillRect(0,0,512,512);
-      let seed=847;
-      const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return (seed>>>0)/4294967296};
-      for(let i=0;i<90;i++){
-        const x=rnd()*512,y=rnd()*512,r=1.5+rnd()*24;
-        ctx.fillStyle=`rgba(74,93,89,${.035+rnd()*.15})`;
-        ctx.beginPath();ctx.ellipse(x,y,r,r*.75,rnd()*6,0,2*Math.PI);ctx.fill();
-      }
-    });
-    const moon=new THREE.Mesh(new THREE.SphereGeometry(1.03,40,28),
-      new THREE.MeshBasicMaterial({map:moonSurface,color:0xe4e6d8,fog:false}));
-    moon.position.set(-7.1,6.6,-33.4);
-    sky.add(moon);
+    // Keep distant stars, but leave out the moon as requested.
 
     // Organic layered evergreen clusters. Instancing keeps rendering efficient.
     const treeTrunk=new THREE.CylinderGeometry(.12,.19,1,6);
@@ -376,7 +345,7 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     const groundTexture=createGroundTexture();
     groundTexture.repeat.set(38,38);
     const floorDeck = new THREE.Mesh(
-      new THREE.RingGeometry(1.15, 105, 144, 8),
+      new THREE.RingGeometry(1.15, 9.4, 112, 8),
       new THREE.MeshStandardMaterial({
         color:0x73776a, metalness:.08, roughness:.98,
         map:groundTexture,bumpMap:groundTexture,bumpScale:.13,side:THREE.DoubleSide,
@@ -386,6 +355,30 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
     floorDeck.position.y=.095;
     floorDeck.receiveShadow=true;
     scene.add(floorDeck);
+    // Grass takes over at the edge of the facility's concrete apron.
+    // Both surfaces have the same ground height; no raised clipping slabs.
+    const grassTexture=createGroundTexture();
+    grassTexture.repeat.set(27,27);
+    const grass = new THREE.Mesh(
+      new THREE.RingGeometry(9.42, 115, 132, 9),
+      new THREE.MeshStandardMaterial({color:0x314b30,metalness:0,roughness:1,
+        map:grassTexture,bumpMap:grassTexture,bumpScale:.05,side:THREE.DoubleSide}),
+    );
+    grass.rotation.x=-Math.PI/2;
+    grass.position.y=.091;
+    grass.receiveShadow=true;
+    scene.add(grass);
+    // An offset approach path meets the main bay from the lower left of frame.
+    const accessPath = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.4,23),
+      new THREE.MeshStandardMaterial({color:0x44483d,metalness:.04,roughness:.93,
+        map:groundTexture,bumpMap:groundTexture,bumpScale:.035}),
+    );
+    accessPath.rotation.x=-Math.PI/2;
+    accessPath.rotation.z=-.72;
+    accessPath.position.set(-6.3,.107,6.7);
+    accessPath.receiveShadow=true;
+    scene.add(accessPath);
     const shaftWall = new THREE.Mesh(
       new THREE.CylinderGeometry(1.105, 1.105, 9.1, 80, 1, true),
       new THREE.MeshStandardMaterial({
@@ -693,22 +686,10 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       mark.position.set(Math.sin(angle)*.413,-.69,Math.cos(angle)*.413);
       missile.add(mark);
     }
-    // The prop is longer and starts completely below the closed inspection deck.
-    // Clipping at deck level keeps hidden sections from unrealistically appearing
-    // through the solid platform as the animated silhouette emerges.
+    // The fictional object is physically present inside the open shaft.
+    // Geometry and the circular hatch conceal it naturally, not a world-space
+    // clipping plane that made it suddenly appear at ground level.
     missile.scale.y = SILO_MODEL_SCALE_Y;
-    const deckClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SILO_DECK_Y);
-    missile.traverse(part => {
-      if (!(part instanceof THREE.Mesh)) return;
-      const original = Array.isArray(part.material) ? part.material : [part.material];
-      const clipped = original.map(material => {
-        const copy = material.clone();
-        copy.clippingPlanes = [deckClip];
-        copy.clipShadows = true;
-        return copy;
-      });
-      part.material = Array.isArray(part.material) ? clipped : clipped[0];
-    });
     missile.position.y = siloModelY(siloPose(null));
     missile.visible = false;
     scene.add(missile);
@@ -920,9 +901,8 @@ export default function LaunchSilo3D({ launchSignal }: Props) {
       hazardTexture.dispose();
       stencilTexture.dispose();
       steelTexture.dispose();
-      moonGlowTexture.dispose();
-      moonSurface.dispose();
       groundTexture.dispose();
+    grassTexture.dispose();
       triangleTexture.dispose();
       squareTexture.dispose();
       smokeTexture.dispose();
