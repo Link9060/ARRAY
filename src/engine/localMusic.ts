@@ -15,7 +15,7 @@ export function clampMusicVolume(volume:number):number {
 
 export function isAudioFile(file:Pick<File,'type'|'name'|'size'>):boolean {
   return file.size>0 && file.size<=80*1024*1024
-    && (file.type.startsWith('audio/') || /\\.(mp3|m4a|ogg|wav|aac)$/i.test(file.name));
+    && (file.type.startsWith('audio/') || /\.(mp3|m4a|ogg|wav|aac)$/i.test(file.name));
 }
 
 type LocalTrack={blob:Blob;name:string};
