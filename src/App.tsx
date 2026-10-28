@@ -3,6 +3,7 @@ import {
   ArrowLeft, ArrowUpRight, Check, ChevronRight,
   CircleDot, Clock3, Compass, Crosshair, ExternalLink, Layers3,
   Radar, Radio, ShieldCheck, Sparkles, X, Play, Wifi, LogIn, LogOut, WifiOff,
+  Search, Download, AlertTriangle, Activity, Server, SlidersHorizontal, ClipboardList,
 } from 'lucide-react';
 import { AGENTS, CATEGORIES, getAgentsForCategory, modelForSelection, type Agent, type AgentCategory, type OperationsMode } from './data/agents';
 import {
@@ -282,7 +283,10 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
   );
 }
 
-function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, onCancel, onGoToArray, onTestLaunch }: {
+function MonitorView({
+  missions, now, selectedMissionId, setSelectedMissionId,
+  onCancel, onGoToArray, onTestLaunch, liveConnected, cloudReady,
+}: {
   missions: Mission[];
   now: number;
   selectedMissionId: string | null;
@@ -290,51 +294,172 @@ function MonitorView({ missions, now, selectedMissionId, setSelectedMissionId, o
   onCancel: (id: string) => void;
   onGoToArray: () => void;
   onTestLaunch: () => void;
+  liveConnected: boolean;
+  cloudReady: boolean;
 }) {
-  const selected = missions.find((mission) => mission.id === selectedMissionId) ?? missions[0];
+  const [search,setSearch] = useState('');
+  const [filter,setFilter] = useState<MissionFilter>('all');
+  const [channel,setChannel] = useState<MissionChannel>('both');
+  const [order,setOrder] = useState<MissionOrder>('newest');
+  const [division,setDivision] = useState<'all' | 'intelligence' | 'operations'>('all');
+  const [eventScope,setEventScope] = useState<'all' | 'selected'>('all');
+
+  const all = filterMissionRegister(missions,search,filter,channel,order);
+  const visible = all.filter(m => division === 'all' || m.category === division);
+  const selected = visible.find(m => m.id === selectedMissionId) ?? visible[0];
+  const activeCount = missions.filter(m => isActiveMission(m.phase)).length;
+  const reviewCount = missions.filter(m => m.phase === 'waiting_approval').length;
+  const completedCount = missions.filter(m => m.phase === 'succeeded').length;
+  const attentionCount = missions.filter(m => m.phase === 'failed' || m.phase === 'canceled').length;
   const liveCount = missions.filter(m => !m.isDemo).length;
-  const completedCount = missions.filter(m => m.phase === 'succeeded' && !m.isDemo).length;
-  const runningCount = missions.filter(m => isActiveMission(m.phase)).length;
-  const auditEntries = missions.flatMap(mission => missionEvents(mission).map(event => ({ ...event, agentName:mission.agentName, missionId:mission.id })))
-    .sort((a,b) => b.time - a.time).slice(0,16);
+  const recordedEvents = missions.flatMap(m => missionEvents(m).map(ev => ({
+    ...ev,agentName:m.agentName,missionId:m.id,
+  }))).sort((a,b) => b.time - a.time);
+  const auditEntries = recordedEvents.filter(ev =>
+    eventScope === 'all' || ev.missionId === selected?.id).slice(0,24);
+  const divisionCounts = {
+    intelligence:missions.filter(m => m.category === 'intelligence' && isActiveMission(m.phase)).length,
+    operations:missions.filter(m => m.category === 'operations' && isActiveMission(m.phase)).length,
+  };
+
+  function exportVisibleMissions() {
+    if(!visible.length)return;
+    const json = makeMissionExport(visible,Date.now());
+    const url = URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='ravin-array-missions-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <div className="monitor-layout">
-      <div className="monitor-primary">
-        <div className="monitor-head">
-          <div><span className="eyebrow">ARRAY / MISSION OPERATIONS</span><h2>Mission control<span className="title-period">.</span></h2><p>Verified task states, recorded events and illustrative route visualization.</p></div>
-          <div className="monitor-header-actions">
-            <button type="button" className="test-launch-button" onClick={onTestLaunch} title="Launch a simulated test vector without connecting a real agent">
-              <Play size={15} fill="currentColor" /> RUN DEMO <span>SIM</span>
-            </button>
-            <button type="button" className="quiet-action" onClick={onGoToArray}><ArrowLeft size={15}/> BACK TO ARRAY</button>
-          </div>
+    <section className="ops-room" aria-label="ARRAY software mission control room">
+      <div className="ops-room-head">
+        <div className="ops-head-title">
+          <div className="ops-room-kicker"><span className="ops-led"/><span>STATION 02 / OPERATIONS & AUDIT</span><span className="ops-separator">/</span><span>RAVIN ARRAY</span></div>
+          <h2>MISSION <span>CONTROL</span><span className="title-period">.</span></h2>
+          <p>Software task tracking, verified event records and an illustrative mission network.</p>
         </div>
-        <div className="monitor-summary" aria-label="Recorded mission summary">
-          <div><span>RECORDED TASKS</span><strong>{missions.length.toString().padStart(2, '0')}</strong><small>Local and server records</small></div>
-          <div><span>ACTIVE</span><strong>{runningCount.toString().padStart(2, '0')}</strong><small>Reported current states</small></div>
-          <div><span>LIVE REQUESTS</span><strong>{liveCount.toString().padStart(2, '0')}</strong><small>Not simulated</small></div>
-          <div><span>LIVE COMPLETED</span><strong>{completedCount.toString().padStart(2, '0')}</strong><small>Server confirmed</small></div>
+        <div className="ops-head-actions">
+          <div className="ops-clock"><Clock3 size={13}/><span>{new Date(now).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><small>LOCAL</small></div>
+          <button type="button" className="ops-action ops-action-demo" onClick={onTestLaunch}><Play size={14}/> NEW DEMO <span>SIM</span></button>
+          <button type="button" className="ops-action ops-action-return" onClick={onGoToArray}><ArrowLeft size={14}/> LAUNCH DESK</button>
         </div>
-        <div className="monitor-section-head"><strong>MISSION NETWORK</strong><span>SYMBOLIC ROUTES · NOT LOCATION OR TIMING DATA</span></div>
-        <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null} onSelect={setSelectedMissionId} now={now} />
-        <div className="monitor-section-head monitor-log-head"><strong>MISSION REGISTER <span className="muted">/ {missions.length.toString().padStart(2, '0')}</span></strong><span>RECENT REQUESTS · NEWEST FIRST</span></div>
-        <div className="mission-list">
-          {missions.length ? missions.map((mission) => <MissionCard key={mission.id} mission={mission} now={now} selected={mission.id === selected?.id} onSelect={() => setSelectedMissionId(mission.id)} />) : <div className="empty-log"><Radio size={18} /> No missions recorded. Run a labeled demo or dispatch a software task to populate the register.</div>}
-        </div>
-        <div className="monitor-section-head monitor-audit-head"><strong>EVENT AUDIT</strong><span>RECORDED STATE TRANSITIONS ONLY</span></div>
-        <div className="mission-audit" aria-label="Recorded mission events">
-          {auditEntries.length ? auditEntries.map(event =>
-            <button type="button" className="audit-entry" key={event.key} onClick={() => setSelectedMissionId(event.missionId)}>
-              <time dateTime={new Date(event.time).toISOString()}>{new Date(event.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time>
-              <span className={event.source === 'simulation' ? 'audit-indicator simulation' : 'audit-indicator'} />
-              <span className="audit-entry-main"><strong>{event.label}</strong><small>{event.agentName} / {event.detail}</small></span>
-              <span className="audit-source">{event.source === 'simulation' ? 'SIM' : 'API'}</span>
-            </button>) : <div className="empty-log">No event records. Nothing has been launched.</div>}
-        </div>
-        <GroveWorkerPanel />
       </div>
-      <MissionInspector mission={selected} now={now} onCancel={onCancel} />
-    </div>
+
+      <div className="ops-connection-strip">
+        <div><span className={liveConnected?'ops-dot ready':'ops-dot'}/><span>RAVIN SERVICE</span><strong>{liveConnected?'AUTHENTICATED':'NOT CONNECTED'}</strong></div>
+        <div><span className={cloudReady?'ops-dot ready':'ops-dot'}/><span>MISSION ARCHIVE</span><strong>{cloudReady?'SYNC ACTIVE':'LOCAL RECORDS'}</strong></div>
+        <div><span className="ops-dot amber"/><span>NETWORK DISPLAY</span><strong>ILLUSTRATIVE / NO GPS</strong></div>
+        <div><span className="ops-dot amber"/><span>LOG ENTRIES</span><strong>{recordedEvents.length.toString().padStart(2,'0')} RECORDED</strong></div>
+      </div>
+
+      <div className="ops-instrument-grid" aria-label="Mission metrics from recorded data">
+        {[
+          {label:'REGISTERED MISSIONS',value:missions.length,description:'Live + simulated',kind:'neutral',icon:<ClipboardList size={17}/>},
+          {label:'ACTIVE WORK',value:activeCount,description:'Queued / running / review',kind:'amber',icon:<Activity size={17}/>},
+          {label:'AWAITING REVIEW',value:reviewCount,description:'Approval required',kind:'review',icon:<ShieldCheck size={17}/>},
+          {label:'COMPLETED',value:completedCount,description:liveCount+' live requests recorded',kind:'green',icon:<Check size={17}/>},
+          {label:'NEEDS ATTENTION',value:attentionCount,description:'Failed or canceled',kind:'red',icon:<AlertTriangle size={17}/>},
+        ].map(item=><div className={'ops-instrument ops-instrument--'+item.kind} key={item.label}>
+          <div className="ops-instrument-top"><span>{item.label}</span>{item.icon}</div>
+          <strong>{item.value.toString().padStart(2,'0')}</strong>
+          <small>{item.description}</small>
+        </div>)}
+      </div>
+
+      <div className="ops-deck-layout">
+        <div className="ops-deck-main">
+          <section className="ops-display-panel" aria-label="Illustrative mission network">
+            <div className="ops-panel-cap">
+              <span><Radar size={15}/> DISPLAY 01 <i/> MISSION NETWORK</span>
+              <span className="ops-cap-meta">VISUAL ROUTES ONLY <span className="ops-online-dot"/></span>
+            </div>
+            <div className="ops-network-shell">
+              <GlobeTrajectoryMap missions={missions} selectedMissionId={selected?.id ?? null}
+                onSelect={setSelectedMissionId} now={now}/>
+            </div>
+            <div className="ops-display-foot"><span>NETWORK VISUALIZATION / ROUTES ARE SYMBOLIC</span><span>{activeCount.toString().padStart(2,'0')} ACTIVE TASKS</span></div>
+          </section>
+
+          <section className="ops-registry-panel" aria-label="Mission registry">
+            <div className="ops-panel-cap"><span><SlidersHorizontal size={15}/> DISPLAY 02 <i/> MISSION REGISTER</span><span className="ops-cap-meta">{visible.length} / {missions.length} RECORDS</span></div>
+            <div className="ops-division-rail">
+              {([
+                ['all','ALL DIVISIONS',missions.filter(m=>isActiveMission(m.phase)).length],
+                ['intelligence','A–01 INTELLIGENCE',divisionCounts.intelligence],
+                ['operations','A–02 OPERATIONS',divisionCounts.operations],
+              ] as const).map(([id,label,count])=>
+                <button type="button" key={id} className={division===id?'selected':''}
+                  aria-pressed={division===id} onClick={()=>setDivision(id)}>
+                  <span className="ops-division-pin"/><strong>{label}</strong><small>{count} ACTIVE</small>
+                </button>)}
+            </div>
+            <div className="ops-filter-bar">
+              <label className="ops-search"><Search size={15}/>
+                <input aria-label="Search missions by agent, objective or ID" value={search}
+                  onChange={e=>setSearch(e.target.value)} placeholder="Search missions, objectives, IDs..."/>
+                {search && <button type="button" onClick={()=>setSearch('')} aria-label="Clear mission search"><X size={13}/></button>}
+              </label>
+              <select className="ops-select" aria-label="Filter missions by status" value={filter} onChange={e=>setFilter(e.target.value as MissionFilter)}>
+                <option value="all">ALL STATES</option>
+                <option value="active">ACTIVE</option>
+                <option value="review">NEEDS REVIEW</option>
+                <option value="completed">COMPLETED</option>
+                <option value="attention">ISSUES / CANCELED</option>
+              </select>
+              <select className="ops-select" aria-label="Filter live or simulated missions" value={channel} onChange={e=>setChannel(e.target.value as MissionChannel)}>
+                <option value="both">ALL SOURCES</option>
+                <option value="live">LIVE ONLY</option>
+                <option value="demo">DEMO ONLY</option>
+              </select>
+              <select className="ops-select" aria-label="Mission sort order" value={order} onChange={e=>setOrder(e.target.value as MissionOrder)}>
+                <option value="newest">NEWEST FIRST</option>
+                <option value="oldest">OLDEST FIRST</option>
+              </select>
+              <button className="ops-export" type="button" onClick={exportVisibleMissions} disabled={!visible.length} title="Export filtered mission records as a JSON file"><Download size={14}/> EXPORT</button>
+            </div>
+            <div className="mission-list ops-mission-register">
+              {visible.length ? visible.map(m=>
+                <MissionCard key={m.id} mission={m} now={now}
+                  selected={m.id===selected?.id} onSelect={()=>setSelectedMissionId(m.id)}/>)
+                : <div className="empty-log ops-no-results"><Search size={18}/> No mission records match these filters.
+                  <button type="button" onClick={()=>{setSearch('');setFilter('all');setChannel('both');setDivision('all');}}>RESET FILTERS</button>
+                </div>}
+            </div>
+          </section>
+
+          <section className="ops-audit-panel" aria-label="Verified mission event audit">
+            <div className="ops-panel-cap"><span><Radio size={15}/> DISPLAY 03 <i/> EVENT AUDIT</span>
+              <div className="ops-audit-scope" role="group" aria-label="Event log scope">
+                <button type="button" aria-pressed={eventScope==='all'} onClick={()=>setEventScope('all')}>ALL EVENTS</button>
+                <button type="button" aria-pressed={eventScope==='selected'} disabled={!selected}
+                  onClick={()=>setEventScope('selected')}>SELECTED TASK</button>
+              </div>
+            </div>
+            <div className="mission-audit ops-audit-stream">
+              {auditEntries.length ? auditEntries.map(ev=>
+                <button type="button" className="audit-entry" key={ev.key} onClick={()=>setSelectedMissionId(ev.missionId)}>
+                  <time dateTime={new Date(ev.time).toISOString()}>{new Date(ev.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time>
+                  <span className={ev.source==='simulation'?'audit-indicator simulation':'audit-indicator'} />
+                  <span className="audit-entry-main"><strong>{ev.label}</strong><small>{ev.agentName} / {ev.detail}</small></span>
+                  <span className="audit-source">{ev.source==='simulation'?'SIM':'API'}</span>
+                </button>) : <div className="empty-log">No recorded events in this view.</div>}
+            </div>
+            <div className="ops-display-foot"><span>SERVER TIMESTAMPS OR EXPLICIT LOCAL DEMO EVENTS</span><span>READ ONLY</span></div>
+          </section>
+          <div className="ops-external-feed"><GroveWorkerPanel/></div>
+        </div>
+        <div className="ops-dossier-rail">
+          <div className="ops-rail-title"><span><Server size={14}/> SELECTED TASK / INSPECTOR</span><span>{selected?'RECORD OPEN':'NO SELECTION'}</span></div>
+          <MissionInspector mission={selected} now={now} onCancel={onCancel}/>
+          <div className="ops-rail-foot"><span className="ops-dot amber"/> NO AUTOMATIC PURCHASES, DEPLOYMENTS OR EXTERNAL TOOLS</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -637,7 +762,7 @@ export default function App() {
               </div>
             </div>
           </>
-        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={returnToArray} onTestLaunch={launchTest}/>}
+        ) : <MonitorView missions={missions} now={now} selectedMissionId={selectedMissionId} setSelectedMissionId={setSelectedMissionId} onCancel={(id) => {void cancelMission(id);}} onGoToArray={returnToArray} onTestLaunch={launchTest} liveConnected={liveConnected} cloudReady={cloudReady}/>}
         <footer className="site-footer"><span>RAVIN ARRAY <span className="muted">© ARROW / RESONANT ASSIST</span></span><span><CircleDot size={12} /> {liveMode ? 'TEXT-ONLY RAVIN SESSION' : 'SIMULATION AVAILABLE'} <span className="footer-divider">/</span> PROTOTYPE 0.2.0</span></footer>
       </main>
       {loginOpen && <div className="live-login-backdrop" role="presentation" onClick={(event) => { if(event.target===event.currentTarget && !loginBusy)setLoginOpen(false); }}>
