@@ -25,10 +25,13 @@ describe('3D launch visualization choreography', () => {
     const opening = siloPose(SILO_SEQUENCE_MS * .18);
     expect(opening.hatch).toBeGreaterThan(0);
     expect(opening.ascent).toBe(0);
-    expect(siloModelVisible(opening)).toBe(false);
+    expect(siloModelVisible(opening)).toBe(true);
   });
-  it('shows the rising prop only when hatch is open and tip has cleared the deck', () => {
-    expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .30))).toBe(false);
+  it('renders the prop inside the open shaft before the nose crosses the deck', () => {
+    const openInside = siloPose(SILO_SEQUENCE_MS * .27);
+    expect(siloModelVisible(openInside)).toBe(true);
+    expect(siloModelY(openInside) + SILO_MODEL_SCALE_Y*SILO_MODEL_TIP_Y).toBeLessThan(SILO_DECK_Y);
+    expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .30))).toBe(true);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS * .50))).toBe(true);
     expect(siloModelVisible(siloPose(SILO_SEQUENCE_MS + 25))).toBe(false);
     expect(siloPose(SILO_SEQUENCE_MS + 25).hatch).toBe(0);
