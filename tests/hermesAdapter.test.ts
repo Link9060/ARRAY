@@ -30,7 +30,7 @@ describe('Hermes server-side adapter', () => {
     expect(() => setup({ baseUrl: 'https://token@example.org' })).toThrow(HermesAdapterError);
   });
   it('passes the objective to the authenticated Hermes API without browser credentials', async () => {
-    const fetchImpl = vi.fn(async () => ({
+    const fetchImpl = vi.fn(async (_url: string, _options: RequestInit) => ({
       ok: true, json: async () => ({
         choices: [{ finish_reason: 'stop', message: { content: 'Draft complete.' } }],
       }),
