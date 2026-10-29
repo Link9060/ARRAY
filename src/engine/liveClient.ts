@@ -4,7 +4,7 @@
  * provider directly. A real RAVIN server deployment is required.
  */
 import { AGENTS } from '../data/agents';
-import type { Mission, MissionPhase, ExecutionPolicy } from './mission';
+import type { Mission, MissionPhase, ExecutionPolicy, AgentEngine } from './mission';
 
 const AUTH_ENDPOINT = 'https://bzjudqhjrbwglxdfbkmj.supabase.co/functions/v1/ravin-auth';
 // Confirmed existing Render service in the user's selected workspace.
@@ -98,6 +98,7 @@ interface ServerMission {
   operationsMode?: 'general' | 'coding';
   instructions?: string;
   model?: string;
+  engine?: AgentEngine;
   status: MissionPhase;
   createdAt: number;
   startedAt?: number;
@@ -119,6 +120,7 @@ export function fromServerMission(remote: ServerMission): Mission {
     operationsMode:remote.operationsMode,
     instructions:remote.instructions,
     model:remote.model,
+    engine:remote.engine === 'hermes' ? 'hermes' : 'ravin',
     phase:status,
     isDemo:false,
     createdAt:remote.createdAt,
@@ -128,11 +130,22 @@ export function fromServerMission(remote: ServerMission): Mission {
     error:remote.error,
   };
 }
-export async function launchLiveMission(agentId:string, objective:string, policy: ExecutionPolicy, operationsMode: 'general' | 'coding' = 'general', instructions = ''): Promise<Mission> {
+export async function launchLiveMission(agentId:string, objective:string, policy: ExecutionPolicy, operationsMode: 'general' | 'coding' = 'general', instructions = '', engine: AgentEngine = 'ravin'): Promise<Mission> {
+  if (engine === 'hermes') {
+    // Fail closed if the deployed server has not explicitly enabled Hermes.
+    // The browser never sends Hermes credentials or talks directly to Hermes.
+    const capabilities = await request<{engines?: string[]}>('/api/array/capabilities');
+    if (!Array.isArray(capabilities.engines) || !capabilities.engines.includes('hermes')) {
+      throw new Error('This RAVIN server has not enabled the Hermes worker yet.');
+    }
+  }
   const response = await request<{mission:ServerMission}>('/api/array/missions', {
     method:'POST',
-    body:JSON.stringify({agentId, objective, policy, operationsMode, instructions}),
+    body:JSON.stringify({agentId, objective, policy, operationsMode, instructions, ...(engine === 'hermes' ? {engine} : {})}),
   });
+  if (engine === 'hermes' && response.mission.engine !== 'hermes') {
+    throw new Error('The server did not confirm Hermes execution. Check mission history before retrying.');
+  }
   return fromServerMission(response.mission);
 }
 export async function listLiveMissions(): Promise<Mission[]> {
