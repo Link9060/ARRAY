@@ -3,7 +3,7 @@
 
 **Project:** ARROW / RAVIN ARRAY  
 **Repository:** `Link9060/ARRAY`  
-**Status:** Prototype UI with authenticated RAVIN text-only mission API adapter and optional Supabase mission-history persistence (see [SUPABASE.md](SUPABASE.md))  
+**Status:** Prototype UI with authenticated RAVIN text-only mission API, optional Supabase history, and a gated server-side Hermes adapter prototype (see [integrations/hermes/README.md](integrations/hermes/README.md)). Hermes is NOT deployed or connected to the RAVIN worker yet.  
 **Canonical product name:** RAVIN ARRAY (UI may display `RAVIN / ARRAY`)  
 **Last product spec update:** 2026-10-27
 
