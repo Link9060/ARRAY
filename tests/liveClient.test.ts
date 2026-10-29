@@ -28,6 +28,8 @@ describe('ARRAY live mission adapter', () => {
     expect(mission.operationsMode).toBe('coding');
     expect(mission.instructions).toBe('Use concise bullet points.');
     expect(mission.model).toBe('@cf/qwen/qwen3.8-27b');
+    expect(mission.engine).toBe('ravin');
+    expect(fromServerMission({...raw, engine:'hermes'}).engine).toBe('hermes');
     expect(isActiveMission(mission.phase)).toBe(true);
     expect(phaseLabel(mission.phase)).toBe('Queued');
     expect(isLiveAuthenticated()).toBe(false);
