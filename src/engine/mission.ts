@@ -1,6 +1,7 @@
 export type MissionPhase = 'queued' | 'deploying' | 'running' | 'waiting_approval' | 'succeeded' | 'failed' | 'canceled';
 export type ExecutionPolicy = 'review' | 'assist' | 'authorized';
 export type OperationsMode = 'general' | 'coding';
+export type AgentEngine = 'ravin' | 'hermes';
 
 export interface Mission {
   id: string;
@@ -12,6 +13,7 @@ export interface Mission {
   operationsMode?: OperationsMode;
   instructions?: string;
   model?: string;
+  engine?: AgentEngine;
   phase: MissionPhase;
   createdAt: number;
   finishedAt?: number;
