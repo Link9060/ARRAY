@@ -21,7 +21,9 @@ import AmbientMusicControl from './components/AmbientMusicControl';
 import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
 import { filterMissionRegister,makeMissionExport, type MissionFilter, type MissionOrder, type MissionChannel } from './engine/monitorFilters';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
-import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
+import { RAVIN_ARRAY_API, liveApiConfigured, checkLiveBackendHealth, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
+import type { AgentEngine } from './engine/mission';
+const HERMES_UI_ENABLED = import.meta.env.VITE_ARRAY_HERMES_ENABLED === 'true';
 import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
 
 type View = 'array' | 'monitor';
@@ -126,7 +128,7 @@ function ArrayCanvas({
 
 function CommandDeck({
   selectedAgent, selectedCategory, objective, setObjective, policy, setPolicy,
-  onSelectCategory, liveMode, operationsMode, setOperationsMode, instructions, setInstructions,
+  onSelectCategory, liveMode, operationsMode, setOperationsMode, instructions, setInstructions, engine, setEngine,
 }: {
   selectedAgent: Agent;
   selectedCategory: AgentCategory;
@@ -140,8 +142,12 @@ function CommandDeck({
   setOperationsMode: (value: OperationsMode) => void;
   instructions: string;
   setInstructions: (value: string) => void;
+  engine: AgentEngine;
+  setEngine: (value: AgentEngine) => void;
 }) {
-  const activeModel = modelForSelection(selectedCategory, operationsMode);
+  const activeModel = liveMode && engine === 'hermes'
+    ? { label: 'Hermes Agent (server sandbox)', id: 'hermes-agent' }
+    : modelForSelection(selectedCategory, operationsMode);
   return (
     <section className="command-deck" aria-label="Agent launch controls">
       <div className="deck-category-row">
@@ -178,11 +184,19 @@ function CommandDeck({
               </div>
             </div>
           )}
+          {liveMode && HERMES_UI_ENABLED && <div className="operations-mode">
+            <span className="eyebrow">AGENT ENGINE (SERVER-GATED)</span>
+            <div className="model-toggle" role="group" aria-label="Agent execution engine">
+              <button type="button" className={engine === 'ravin' ? 'active' : ''} aria-pressed={engine === 'ravin'} onClick={() => setEngine('ravin')}>RAVIN</button>
+              <button type="button" className={engine === 'hermes' ? 'active' : ''} aria-pressed={engine === 'hermes'} onClick={() => setEngine('hermes')}>HERMES</button>
+            </div>
+            <small>Hermes requires an enabled, isolated server worker; it may be unavailable.</small>
+          </div>}
           <div className="model-identity" aria-live="polite">
             <span>SELECTED MODEL</span>
             <strong>{activeModel.label}</strong>
             <small>{liveMode ? 'Server confirms model on mission start' : 'Preview selection / no inference'}</small>
-            {selectedCategory === 'operations' && operationsMode === 'coding' &&
+            {engine !== 'hermes' && selectedCategory === 'operations' && operationsMode === 'coding' &&
               <small className="model-cost-warning">Cloudflare free usage is limited. Paid accounts may incur charges.</small>}
           </div>
         </div>
@@ -273,7 +287,7 @@ function MissionInspector({ mission, now, onCancel }: { mission: Mission | undef
       <div className="inspector-section"><span className="eyebrow">MISSION SETTINGS</span>
         <div className="inspector-detail"><span>Policy</span><strong>{mission.policy === 'review' ? 'Review first · draft + checks' : mission.policy === 'assist' ? 'Assist only · text output' : 'Unsupported legacy policy'}</strong></div>
         {mission.instructions && <div className="inspector-instructions"><span className="eyebrow">ADDITIONAL RESPONSE INSTRUCTIONS</span><p>{mission.instructions}</p></div>}
-        <div className="inspector-detail"><span>Engine</span><strong>{mission.isDemo ? 'Local simulator' : 'RAVIN / tool-free AI'}</strong></div>
+        <div className="inspector-detail"><span>Engine</span><strong>{mission.isDemo ? 'Local simulator' : mission.engine === 'hermes' ? 'Hermes Agent (server-confirmed)' : 'RAVIN / text-only AI'}</strong></div>
         {mission.model && <div className="inspector-detail"><span>Model</span><strong>{mission.model}</strong></div>}
         {mission.operationsMode === 'coding' && <div className="inspector-detail"><span>Operations mode</span><strong>Coding, text-only</strong></div>}
         <div className="inspector-detail"><span>Output</span><strong>{mission.isDemo ? 'None · simulation' : mission.output ? 'Text result received' : 'Not received yet'}</strong></div>
@@ -562,7 +576,9 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState('');
   const [liveMode, setLiveMode] = useState(false);
+  const [engine, setEngine] = useState<AgentEngine>('ravin');
   const [liveConnected, setLiveConnected] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -571,6 +587,14 @@ export default function App() {
   const [liveError, setLiveError] = useState('');
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudError, setCloudError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void checkLiveBackendHealth().then(ready => {
+      if (active) setBackendStatus(ready ? 'online' : 'offline');
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const transitions=missionEndTransitions(previousPhases.current,missions);
@@ -719,7 +743,7 @@ export default function App() {
     if (liveMode) {
       setLaunchPending(true);
       try {
-        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general', instructions);
+        const mission = await launchLiveMission(selectedAgent.id, objective.trim(), policy, selectedCategory === 'operations' ? operationsMode : 'general', instructions, engine);
         setLaunchedAgentId(selectedAgent.id);
         setMissions(previous => [mission, ...previous].slice(0,50));
         if (cloudReady) void storeMission(mission).catch(error => setCloudError(String(error)));
@@ -760,6 +784,12 @@ export default function App() {
     event.preventDefault();
     setLoginBusy(true); setLoginError('');
     try {
+      const online = await checkLiveBackendHealth();
+      setBackendStatus(online ? 'online' : 'offline');
+      if (!online) {
+        setLoginError('RAVIN worker server is offline. Live missions are unavailable; simulation still works.');
+        return;
+      }
       await signInLive(loginEmail, loginPassword);
       resetArrayCloudIdentity();
       let saved: Mission[] = [];
@@ -852,7 +882,7 @@ export default function App() {
           <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={returnToArray} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
-          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
+          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : !liveApiConfigured() ? 'LIVE BACKEND NOT CONFIGURED / DEMO READY' : backendStatus === 'online' ? 'RAVIN SERVER ONLINE / SIGN IN TO VERIFY' : backendStatus === 'checking' ? 'CHECKING WORKER CONNECTION' : 'RAVIN SERVER OFFLINE / SIMULATION AVAILABLE'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
           <div className="connection-actions">
             <button type="button" className={!liveMode ? 'active' : ''} onClick={() => { setLiveMode(false); setPolicy('review'); }} aria-pressed={!liveMode}>SIMULATION</button>
             <button type="button" className={liveMode ? 'active' : ''} onClick={() => { if(liveConnected){setLiveMode(true);if(policy==='authorized')setPolicy('review');}else {setLoginError('');setLoginOpen(true);} }} aria-pressed={liveMode} disabled={!liveApiConfigured()}>{liveConnected ? <Wifi size={13}/> : <LogIn size={13}/>} LIVE RAVIN</button>
@@ -885,7 +915,8 @@ export default function App() {
                 <CommandDeck selectedAgent={selectedAgent} selectedCategory={selectedCategory}
                   objective={objective} setObjective={setObjective} policy={policy} setPolicy={setPolicy}
                   onSelectCategory={selectCategory} liveMode={liveMode} operationsMode={operationsMode}
-                  setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}/>
+                  setOperationsMode={setOperationsMode} instructions={instructions} setInstructions={setInstructions}
+                   engine={engine} setEngine={setEngine}/>
               </aside>
               <div className="array-station-right">
                 <ArrayCanvas launchSignal={cameraSequence} launchPlaying={launchPlaying} onPreview={previewSilo} />

@@ -63,6 +63,7 @@ function parseMission(data: unknown): Mission | null {
     ...(typeof m.instructions === 'string' && m.instructions.length <= 400 ? { instructions: m.instructions } : {}),
     ...(m.operationsMode === 'general' || m.operationsMode === 'coding' ? { operationsMode: m.operationsMode } : {}),
     ...(typeof m.model === 'string' && m.model.length < 140 ? { model: m.model } : {}),
+    ...(m.engine === 'ravin' || m.engine === 'hermes' ? { engine: m.engine } : {}),
     ...(typeof m.startedAt === 'number' ? { startedAt: m.startedAt } : {}),
     ...(typeof m.finishedAt === 'number' ? { finishedAt: m.finishedAt } : {}),
     ...(typeof m.output === 'string' ? { output: m.output } : {}),

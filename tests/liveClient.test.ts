@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { fromServerMission, isLiveAuthenticated, liveApiConfigured, RAVIN_ARRAY_API } from '../src/engine/liveClient';
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { checkLiveBackendHealth, fromServerMission, isLiveAuthenticated, liveApiConfigured, RAVIN_ARRAY_API } from '../src/engine/liveClient';
 import { advanceDemoMission, isActiveMission, phaseLabel, type Mission } from '../src/engine/mission';
 
 describe('ARRAY live mission adapter', () => {
@@ -28,6 +28,8 @@ describe('ARRAY live mission adapter', () => {
     expect(mission.operationsMode).toBe('coding');
     expect(mission.instructions).toBe('Use concise bullet points.');
     expect(mission.model).toBe('@cf/qwen/qwen3.8-27b');
+    expect(mission.engine).toBe('ravin');
+    expect(fromServerMission({...raw, engine:'hermes'}).engine).toBe('hermes');
     expect(isActiveMission(mission.phase)).toBe(true);
     expect(phaseLabel(mission.phase)).toBe('Queued');
     expect(isLiveAuthenticated()).toBe(false);
@@ -43,5 +45,20 @@ describe('ARRAY live mission adapter', () => {
       output:'Draft ready for review',finishedAt:1700000008000});
     expect(mission.output).toBe('Draft ready for review');
     expect(mission.finishedAt).toBe(1700000008000);
+  });
+});
+
+describe('live backend health monitoring', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('reports an actually healthy RAVIN service, not just a configured URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ ok: true }) })));
+    expect(await checkLiveBackendHealth()).toBe(true);
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/health'), expect.any(Object));
+  });
+  it('reports failed, suspended and unreachable backends as offline', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({ ok: false }) })));
+    expect(await checkLiveBackendHealth()).toBe(false);
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network unavailable'); }));
+    expect(await checkLiveBackendHealth()).toBe(false);
   });
 });
