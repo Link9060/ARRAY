@@ -21,7 +21,7 @@ import AmbientMusicControl from './components/AmbientMusicControl';
 import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
 import { filterMissionRegister,makeMissionExport, type MissionFilter, type MissionOrder, type MissionChannel } from './engine/monitorFilters';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
-import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
+import { RAVIN_ARRAY_API, liveApiConfigured, checkLiveBackendHealth, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
 import type { AgentEngine } from './engine/mission';
 const HERMES_UI_ENABLED = import.meta.env.VITE_ARRAY_HERMES_ENABLED === 'true';
 import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
@@ -578,6 +578,7 @@ export default function App() {
   const [liveMode, setLiveMode] = useState(false);
   const [engine, setEngine] = useState<AgentEngine>('ravin');
   const [liveConnected, setLiveConnected] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -586,6 +587,14 @@ export default function App() {
   const [liveError, setLiveError] = useState('');
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudError, setCloudError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void checkLiveBackendHealth().then(ready => {
+      if (active) setBackendStatus(ready ? 'online' : 'offline');
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const transitions=missionEndTransitions(previousPhases.current,missions);
@@ -775,6 +784,12 @@ export default function App() {
     event.preventDefault();
     setLoginBusy(true); setLoginError('');
     try {
+      const online = await checkLiveBackendHealth();
+      setBackendStatus(online ? 'online' : 'offline');
+      if (!online) {
+        setLoginError('RAVIN worker server is offline. Live missions are unavailable; simulation still works.');
+        return;
+      }
       await signInLive(loginEmail, loginPassword);
       resetArrayCloudIdentity();
       let saved: Mission[] = [];
@@ -867,7 +882,7 @@ export default function App() {
           <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={returnToArray} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
-          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
+          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : !liveApiConfigured() ? 'LIVE BACKEND NOT CONFIGURED / DEMO READY' : backendStatus === 'online' ? 'RAVIN SERVER ONLINE / SIGN IN TO VERIFY' : backendStatus === 'checking' ? 'CHECKING WORKER CONNECTION' : 'RAVIN SERVER OFFLINE / SIMULATION AVAILABLE'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
           <div className="connection-actions">
             <button type="button" className={!liveMode ? 'active' : ''} onClick={() => { setLiveMode(false); setPolicy('review'); }} aria-pressed={!liveMode}>SIMULATION</button>
             <button type="button" className={liveMode ? 'active' : ''} onClick={() => { if(liveConnected){setLiveMode(true);if(policy==='authorized')setPolicy('review');}else {setLoginError('');setLoginOpen(true);} }} aria-pressed={liveMode} disabled={!liveApiConfigured()}>{liveConnected ? <Wifi size={13}/> : <LogIn size={13}/>} LIVE RAVIN</button>
