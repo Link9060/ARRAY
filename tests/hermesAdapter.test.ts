@@ -41,8 +41,8 @@ describe('Hermes server-side adapter', () => {
     expect(output).toMatchObject({ engine: 'hermes', model: 'hermes-agent', output: 'Draft complete.' });
     const [url, options] = fetchImpl.mock.calls[0];
     expect(url).toBe('http://127.0.0.1:8642/v1/chat/completions');
-    expect(options.headers.Authorization).toBe('Bearer test-key');
-    expect(JSON.parse(options.body).messages[1].content).toBe('Review this TypeScript function');
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer test-key');
+    expect(JSON.parse(String(options.body)).messages[1].content).toBe('Review this TypeScript function');
   });
   it('denies policies that could perform external actions', async () => {
     await expect(setup().execute({ objective: 'Ship changes', policy: 'authorized' }))
