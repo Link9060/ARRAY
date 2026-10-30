@@ -23,6 +23,22 @@ function validApi(): string {
   }
   return url.origin + url.pathname.replace(/\/$/, '');
 }
+/** Public server reachability probe, independent of having a valid URL or login token. */
+export async function checkLiveBackendHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(validApi() + '/api/health', {
+      method: 'GET',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return false;
+    const health: unknown = await response.json();
+    return Boolean(health && typeof health === 'object' && 'ok' in health && health.ok === true);
+  } catch {
+    return false;
+  }
+}
 export function liveApiConfigured(): boolean {
   try { validApi(); return true; } catch { return false; }
 }
