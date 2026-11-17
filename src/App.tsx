@@ -22,7 +22,7 @@ import { SILO_SEQUENCE_MS, activeLaunchSignal } from './engine/siloAnimation';
 import { filterMissionRegister,makeMissionExport, type MissionFilter, type MissionOrder, type MissionChannel } from './engine/monitorFilters';
 import GroveWorkerPanel from './components/GroveWorkerPanel';
 import { RAVIN_ARRAY_API, liveApiConfigured, signInLive, signOutLive, launchLiveMission, listLiveMissions, cancelQueuedLiveMission } from './engine/liveClient';
-import { loadSavedMissions, storeMission, resetArrayCloudIdentity } from './engine/arrayCloud';
+import { loadSavedMissions, storeMission } from './engine/arrayCloud';
 
 type View = 'array' | 'monitor';
 type CompletionSignal = { mission: Mission; observedAt: number };
@@ -756,20 +756,32 @@ export default function App() {
     setNotice(`${selectedAgent.name} demo sequence deployed. No real AI work started.`);
   }
 
+  async function connectArrowHistory() {
+    setCloudError('');
+    try {
+      const saved = await loadSavedMissions();
+      setMissions(previous => {
+        const records = [...saved, ...previous];
+        return [...new Map(records.map(m => [m.id,m])).values()]
+          .sort((a,b) => b.createdAt - a.createdAt).slice(0,50);
+      });
+      setCloudReady(true);
+      setNotice('ARROW cloud history connected. Existing mission records loaded.');
+    } catch (error) {
+      setCloudReady(false);
+      setCloudError(error instanceof Error ? error.message : 'ARROW cloud history is unavailable.');
+    }
+  }
+
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoginBusy(true); setLoginError('');
     try {
       await signInLive(loginEmail, loginPassword);
-      resetArrayCloudIdentity();
-      let saved: Mission[] = [];
-      try {
-        saved = await loadSavedMissions();
-        setCloudReady(true); setCloudError('');
-      } catch (error) {
-        setCloudReady(false);
-        setCloudError(error instanceof Error ? error.message : 'Cloud history unavailable.');
-      }
+      
+      // ARROW history uses a different account. Do not replace it with the older
+      // RAVIN live server's sign-in token.
+      const saved: Mission[] = [];
       let remote: Mission[] = [];
       let serverOnline = false;
       try {
@@ -786,15 +798,14 @@ export default function App() {
       setLiveConnected(true); setLiveMode(serverOnline);
       setLoginOpen(false); setLoginPassword('');
       if (policy === 'authorized') setPolicy('review');
-      setNotice(serverOnline ? 'RAVIN connected. Supabase mission history checked.' : 'Account authenticated. RAVIN server is unavailable; Supabase history may still sync.');
+      setNotice(serverOnline ? 'Legacy RAVIN live API connected. ARROW cloud history is a separate connection.' : 'Legacy RAVIN account authenticated, but its mission server is offline.');
     } catch(error) {
-      signOutLive(); resetArrayCloudIdentity(); setCloudReady(false);
-      setLoginError(error instanceof Error ? error.message : 'Could not connect to RAVIN.');
+      signOutLive();  setLoginError(error instanceof Error ? error.message : 'Could not connect to RAVIN.');
     } finally { setLoginBusy(false); }
   }
   function disconnectLive() {
-    signOutLive(); resetArrayCloudIdentity();
-    setLiveConnected(false); setLiveMode(false); setCloudReady(false); setCloudError('');
+    signOutLive(); 
+    setLiveConnected(false); setLiveMode(false);
     setMissions([]);
     setNotice('Signed out. Account mission history is no longer shown.');
   }
@@ -852,14 +863,15 @@ export default function App() {
           <div className="mode-panel"><div className="mode-panel-head"><span>OPERATIONS TERMINAL</span><span><Radio size={12} /> {liveMode ? 'RAVIN LIVE' : 'LOCAL DEMO'}</span></div><div className="view-toggle" role="group" aria-label="Choose ARRAY view"><button type="button" className={view === 'array' ? 'active' : ''} onClick={returnToArray} aria-pressed={view === 'array'}><Layers3 size={16}/> LAUNCH ARRAY</button><button type="button" className={view === 'monitor' ? 'active' : ''} onClick={() => setView('monitor')} aria-pressed={view === 'monitor'}><Radar size={16}/> FLIGHT MONITOR {activeCount > 0 && <span className="nav-active-count">{activeCount}</span>}</button></div></div>
         </div>
         <div className="connection-toolbar">
-          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / SUPABASE HISTORY SYNC ON' : ''}</div>
+          <div className="connection-status"><span className={liveConnected ? 'connection-light connected' : 'connection-light'}/> {liveConnected ? 'RAVIN AUTHENTICATED / TEXT-ONLY WORKERS' : liveApiConfigured() ? 'API ENDPOINT CONFIGURED / SIGN IN TO VERIFY' : 'LIVE BACKEND NOT CONFIGURED / DEMO READY'}{cloudReady ? ' / ARROW HISTORY SYNC ON' : ''}</div>
           <div className="connection-actions">
             <button type="button" className={!liveMode ? 'active' : ''} onClick={() => { setLiveMode(false); setPolicy('review'); }} aria-pressed={!liveMode}>SIMULATION</button>
             <button type="button" className={liveMode ? 'active' : ''} onClick={() => { if(liveConnected){setLiveMode(true);if(policy==='authorized')setPolicy('review');}else {setLoginError('');setLoginOpen(true);} }} aria-pressed={liveMode} disabled={!liveApiConfigured()}>{liveConnected ? <Wifi size={13}/> : <LogIn size={13}/>} LIVE RAVIN</button>
             {liveConnected && <button type="button" className="disconnect-action" onClick={disconnectLive} title="Sign out of live RAVIN"><LogOut size={13}/> DISCONNECT</button>}
+            <button type="button" onClick={() => { void connectArrowHistory(); }} className={cloudReady ? 'active' : ''} title="Load owner-only history from the ARROW/Relay Supabase project">{cloudReady ? 'ARROW HISTORY ON' : 'CONNECT ARROW HISTORY'}</button>
           </div>
         </div>
-        {cloudError && liveConnected && <p className="connection-error" role="status"><WifiOff size={14}/> Supabase history: {cloudError}</p>}
+        {cloudError && <p className="connection-error" role="status"><WifiOff size={14}/> Supabase history: {cloudError}</p>}
         {liveError && <p className="connection-error" role="alert"><WifiOff size={14}/> {liveError}</p>}
         <div className="stats-strip">
           <span><span className="strip-indicator" /> SYSTEM ONLINE <span className="strip-separator">/</span> {liveMode ? 'LIVE TEXT MISSIONS' : 'INTERFACE PREVIEW'}</span>

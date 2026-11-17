@@ -5,16 +5,13 @@
  * Browser-safe publishable key; every database operation is protected by RLS.
  */
 import type { Mission, MissionPhase, ExecutionPolicy } from './mission';
-import { getLiveAccessToken } from './liveClient';
+import { getArrowCloudIdentity } from './arrowCloudSession';
 
-const URL = 'https://bzjudqhjrbwglxdfbkmj.supabase.co';
-const PUBLISHABLE_KEY = 'sb_publishable_wVnTPMs0hUuWdt1_LGMIYQ_D-aXveMV';
-let cachedOwnerId: string | null = null;
-
-export function resetArrayCloudIdentity(): void { cachedOwnerId = null; }
+const URL = 'https://cnorozrjugxpanpfmssa.supabase.co';
+const PUBLISHABLE_KEY = 'sb_publishable_yVNPiB7opT0WRvBfKTZ2BA_s5bOQLRg';
 
 async function supabaseRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const jwt = await getLiveAccessToken();
+  const { token: jwt } = await getArrowCloudIdentity();
   const response = await fetch(URL + path, {
     ...options,
     headers: {
@@ -36,11 +33,9 @@ async function supabaseRequest<T>(path: string, options: RequestInit = {}): Prom
 }
 
 async function ownerId(): Promise<string> {
-  if (cachedOwnerId) return cachedOwnerId;
-  const user = await supabaseRequest<{ id: string }>('/auth/v1/user');
-  if (!user.id) throw new Error('Supabase did not return a user ID.');
-  cachedOwnerId = user.id;
-  return cachedOwnerId;
+  // Validate the ARROW account on every operation rather than trusting a cached UUID.
+  const { user } = await getArrowCloudIdentity();
+  return user.id;
 }
 
 const phases: MissionPhase[] = ['queued', 'deploying', 'running', 'waiting_approval', 'succeeded', 'failed', 'canceled'];

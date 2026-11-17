@@ -1,0 +1,26 @@
+name: Validate ARRAY ARROW cloud migration
+on:
+  push:
+    branches: ["migration/**"]
+  pull_request:
+    paths:
+      - "src/engine/arrayCloud.ts"
+      - "src/engine/arrowCloudSession.ts"
+      - "src/App.tsx"
+      - "index.html"
+permissions:
+  contents: read
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Compile and build
+        run: npm run build
+      - name: Unit tests
+        run: npm test
