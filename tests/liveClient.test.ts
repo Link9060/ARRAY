@@ -3,8 +3,8 @@ import { fromServerMission, isLiveAuthenticated, liveApiConfigured, RAVIN_ARRAY_
 import { advanceDemoMission, isActiveMission, phaseLabel, type Mission } from '../src/engine/mission';
 
 describe('ARRAY live mission adapter', () => {
-  it('has a public RAVIN API origin configured without containing credentials', () => {
-    expect(liveApiConfigured()).toBe(true);
+  it('keeps the legacy RAVIN API disabled by default and uses a credential-free endpoint', () => {
+    expect(liveApiConfigured()).toBe(false);
     expect(new URL(RAVIN_ARRAY_API).protocol).toBe('https:');
     expect(new URL(RAVIN_ARRAY_API).username).toBe('');
     expect(new URL(RAVIN_ARRAY_API).password).toBe('');
