@@ -13,3 +13,7 @@ The new destination is the ARROW/Relay project, with a private table named publi
 - The original Supabase project must remain active until you have tested the transfer and verified the destination records.
 
 The new adapter requests fresh identity through Supabase Auth and does not trust a cached owner ID or reuse a legacy RAVIN token. No service-role key is shipped in the browser.
+
+## Migration cutover note (November 2026)
+
+The previous 1.1 live-mission backend still depends on the original RAVIN Supabase JWT. It is disabled by default in this migration branch, so users are not directed to a sign-in flow that will stop working when the old project is paused. This does not migrate the actual mission executor. `VITE_ARRAY_LEGACY_RAVIN_AUTH=true` temporarily re-enables the legacy client for a test against a running old backend, but it is not a production migration. ARROW mission history and ARRAY simulation remain available without the older database.

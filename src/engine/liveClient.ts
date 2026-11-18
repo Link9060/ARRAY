@@ -14,7 +14,11 @@ export const RAVIN_ARRAY_API = (import.meta.env.VITE_RAVIN_ARRAY_API_URL || 'htt
 type Session = { accessToken: string; refreshToken: string; expiresAt: number };
 let session: Session | null = null;
 
+// Live RAVIN 1.1 needs the retired project's JWT. Keep its code available
+// for a future explicit migration, but do not offer a broken login by default.
+const legacyLiveEnabled = import.meta.env.VITE_ARRAY_LEGACY_RAVIN_AUTH === 'true';
 function validApi(): string {
+  if (!legacyLiveEnabled) throw new Error('Legacy RAVIN live missions are disabled during ARROW migration. Simulation and ARROW cloud history remain available.');
   if (!RAVIN_ARRAY_API) throw new Error('Live RAVIN server is not configured yet. Simulation is available.');
   let url: URL;
   try { url = new URL(RAVIN_ARRAY_API); } catch { throw new Error('Invalid RAVIN ARRAY API URL.'); }
